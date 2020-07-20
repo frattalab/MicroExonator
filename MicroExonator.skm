@@ -34,7 +34,7 @@ rule quant:
 rule discovery:
     input:
         "Round2/ME_canonical_SJ_tags.de_novo.fa",
-        expand("Round2/{sample}.bam",sample=DATA)
+        #expand("Round2/{sample}.bam",sample=DATA)
 
 
 #### MicroExonator ####
