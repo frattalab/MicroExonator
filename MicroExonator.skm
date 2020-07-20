@@ -13,9 +13,15 @@ def str2bool(v):
   else:
     return v.lower() in ("yes", "true", "t", "1")
 
+#Moved here so DATA is filled before targets are defined in the first rule (quant) - expand calls work as intended 
+#https://snakemake.readthedocs.io/en/stable/snakefiles/modularization.html#includes
+include : "rules/init.skm"
+include : "rules/Get_data.skm"
+
 rule quant:
     input:
         "Report/out.high_quality.txt",
+        expand("Round2/{sample}.bam",sample=DATA)
         #"Report/out_filtered_ME.PSI.txt",
         #"Report/stats/Microexons.not_consensus",
         #"Report/stats/Microexons.annotation.stats"
@@ -51,8 +57,12 @@ if ("min_reads_PSI" in config)==False:
     config["min_reads_PSI"]="5"
 
 
-include : "rules/init.skm"
-include : "rules/Get_data.skm"
+#include : "rules/init.skm"
+#include : "rules/Get_data.skm"
+
+rule bowtie_bam_files:
+    input:
+        expand("Round2/{sample}.bam",sample=DATA)
 
 
 rule bamfiles:
