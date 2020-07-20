@@ -16,10 +16,9 @@ def str2bool(v):
 rule quant:
     input:
         "Report/out.high_quality.txt",
-        #"Report/out_filtered_ME.PSI.txt",        
+        #"Report/out_filtered_ME.PSI.txt",
         #"Report/stats/Microexons.not_consensus",
-        #"Report/stats/Microexons.annotation.stats"        
-        
+        #"Report/stats/Microexons.annotation.stats"
         #"Report/out_filtered_ME.txt"
         #expand("Genome_aligments/{Software}/TOTAL.exons.{Software}", Software=["Hisat2", "STAR", "Olego"])
         # expand("Genome_aligments/{Software}/{sample}.sam.SJ_count", sample=DATA, Software=["Hisat2", "STAR"]),
@@ -28,14 +27,15 @@ rule quant:
 
 rule discovery:
     input:
-        "Round2/ME_canonical_SJ_tags.de_novo.fa"
+        "Round2/ME_canonical_SJ_tags.de_novo.fa",
+        expand("Round2/{sample}.bam",sample=DATA)
 
 
 #### MicroExonator ####
 
 if ("deletion_penalty" in config)==False:
     config["deletion_penalty"]="6"
-    
+
 if ("insertion_penalty" in config)==False:
     config["insertion_penalty"]="2"
 
@@ -57,7 +57,7 @@ include : "rules/Get_data.skm"
 
 rule bamfiles:
     input:
-        expand("Whippet/BAM/{samples}.bam", samples=DATA), 
+        expand("Whippet/BAM/{samples}.bam", samples=DATA),
         expand("Whippet/BAM/{samples}.bam.bai", samples=DATA)
 
 
@@ -94,7 +94,7 @@ if not "Single_Cell" in config:
    config["Single_Cell"]="F"
 
 if str2bool(config["Single_Cell"]):
-   include : "rules/Snakepool.py"   
+   include : "rules/Snakepool.py"
 
 #### Benchmark ####
 
@@ -113,19 +113,19 @@ round1_incomplete = []
 for file in DATA:
     if os.path.isfile('./Round1/' + file  + '.sam.row_ME.filter1')!=True:
         round1_incomplete.append(file)
-  
+
 rule rerun_incomplete_round1:
     input:
         expand("Round1/{sample}.sam.row_ME.filter1", sample=round1_incomplete )
-        
-        
-        
+
+
+
 round2_incomplete = []
 
 for file in DATA:
     if os.path.isfile('./Round2/' + file  + '.sam.pre_processed.filter1.ME_SJ_coverage')!=True:
         round2_incomplete.append(file)
-  
+
 rule rerun_incomplete_round2:
     input:
         expand("Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage", sample=round2_incomplete )
