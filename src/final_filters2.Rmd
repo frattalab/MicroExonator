@@ -66,7 +66,7 @@ ME_matches_file=params$ME_matches_file
 out_filtered_ME=params$out_filtered_ME
 out_low_scored_ME=params$out_low_scored_ME
 out_shorter_than_3_ME=params$out_shorter_than_3_ME
-
+min_number_files_detected=params$min_number_files_detected
 
 out_filtered_ME_cov = params$out_filtered_ME_cov
 
