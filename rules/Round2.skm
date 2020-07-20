@@ -61,7 +61,7 @@ rule download_fastq2:
     output:
         temp("FASTQ/round2/{sample}.fastq")
     priority: -10
-    resources: 
+    resources:
         get_data = 1
     conda:
         "../envs/core.yaml"
@@ -87,12 +87,36 @@ rule Round2_bowtie_to_tags:
     conda:
         "../envs/core.yaml"
     shell:
-        "bowtie {input[0]} -p {threads} -q {input[1]} -S -v 2 --seed 123 | awk '!($6 ~ /I/) && !($6 ~ /D/) && !($6 ~ /S/) && !($6 ~ /*/)' > {output}"
+        "bowtie {input[0]} -p {threads} -q {input[1]} -S -v 2 --seed 123 {output}"
 
+
+rule sam_to_bam:
+    input:
+        "Round2/{sample}.sam",
+
+    output:
+        "Round2/{sample}.bam"
+
+    conda:
+        "../envs/core.yaml"
+
+    shell:
+        "samtools view -b {input} -o {output}"
+
+
+rule Round2_bowtie_sam_to_tags:
+    input:
+        "Round2/{sample}.sam",
+
+    output:
+        temp("Round2/{sample}.tags.sam")
+
+    shell:
+        "awk '!($6 ~ /I/) && !($6 ~ /D/) && !($6 ~ /S/) && !($6 ~ /*/)' {input} > {output}"
 
 rule Round2_alingment_pre_processing:
     input:
-        "Round2/{sample}.sam"
+        "Round2/{sample}.tags.sam"
     output:
         temp("Round2/{sample}.sam.pre_processed")
     priority: 100
