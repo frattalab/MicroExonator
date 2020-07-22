@@ -91,17 +91,36 @@ rule Round2_bowtie_to_tags:
 
 
 rule sam_to_bam:
+    '''
+    () in some sequence names mean igv can't load BAM file
+    Some SN:<sequence_name> are duplicated - one @SQ tag per sequence name only
+    '''
+
     input:
         "Round2/{sample}.sam",
 
     output:
-        "Round2/{sample}.bam"
+        "Round2/{sample}.bam",
+        "Round2/{sample}.bam.bai"
 
-    conda:
-        "../envs/core.yaml"
+    #conda:
+    #    "../envs/core.yaml"
+
+    params:
+        config['samtools_path']
 
     shell:
-        "samtools view -b {input} -o {output}"
+        """
+        {params} sort -o {output[0]}.temp {input} 
+        
+        {params} view -H {output[0]}.temp |\
+        tr -d '()' |\
+        sort -u |\
+        {params} reheader - {output[0]}.temp > {output[0]}
+        
+        rm {output[0]}.temp 
+        {params} index {output[0]} {output[1]} 
+        """
 
 
 rule Round2_bowtie_sam_to_tags:
