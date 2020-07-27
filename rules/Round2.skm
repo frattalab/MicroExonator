@@ -92,8 +92,9 @@ rule Round2_bowtie_to_tags:
 
 rule sam_to_bam:
     '''
-    () in some sequence names mean igv can't load BAM file
-    Some SN:<sequence_name> are duplicated - one @SQ tag per sequence name only
+    () characters are invalid reference sequence names for SAM/BAM files (see regex in specs)
+    Remove () characters from alignment lines (column 3) & header before conversion to BAM
+    Some SN:<sequence_name> are also duplicated in header - one @SQ tag per sequence name only
     '''
 
     input:
@@ -103,23 +104,27 @@ rule sam_to_bam:
         "Round2/{sample}.bam",
         "Round2/{sample}.bam.bai"
 
-    #conda:
-    #    "../envs/core.yaml"
+    conda:
+        "../envs/core.yaml"
 
-    params:
-        config['samtools_path']
+    #params:
+    #    config['samtools_path']
 
     shell:
         """
-        {params} sort -o {output[0]}.temp {input} 
-        
-        {params} view -H {output[0]}.temp |\
+        samtools view -H {input} |\
         tr -d '()' |\
-        sort -u |\
-        {params} reheader - {output[0]}.temp > {output[0]}
-        
-        rm {output[0]}.temp 
-        {params} index {output[0]} {output[1]} 
+        sort -u > {input}.header
+
+        samtools view {input} | awk 'BEGIN{{FS=OFS="\\t"}} {{gsub(/\(|\)/, "", $3)}} 1' - > {input}.alignments
+
+        cat {input}.header {input}.alignments > {input}.concat
+	rm {input}.header {input}.alignments
+
+        samtools sort -o {output[0]} {input}.concat        
+        rm {input}.concat
+
+        samtools index {output[0]} {output[1]}
         """
 
 
