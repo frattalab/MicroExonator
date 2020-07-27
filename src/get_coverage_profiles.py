@@ -29,7 +29,7 @@ from collections import OrderedDict
 # Helper functions for main functions contained within this block
 ######--------------------------
 
-def get_data_dict(row_list,key_idx_dict={'transcript_id': 1, 'splice_junctions': 3,'mex_sequence': 6}):
+def get_data_dict(row_list,key_idx_dict={'transcript_id': 1, 'splice_junction': 3,'mex_sequence': 6}):
     '''
     returns dictionary of data of choice to return from row of microexon results table (row data, row_list, is stored in list by csv.reader).
     Key names and index of column should be provided in key_idx_dict
@@ -106,12 +106,55 @@ def all_microexons_dict(filepaths_list, expected_files_list=['out.ambiguous.txt'
     return full_dict
 
 
-
-
-
-def initial_pileup(bam):
+def get_mex_reference_names(microexon_dict,pysam_bam):
     '''
-    Calculate per nucleotide coverage for all sequence tags using pysam pileup
+    Return dict of {(sj_coords, me_seq): 'ref_seq_name'} mapping identified microexons to reference sequence names
+    Do this to reduce iterations of pysam.pileup - only really interested in coverages profiles across microexons
+    Reference names have general format:
+    chr17:42981074+42987255|ENST00000361677.5|100_GGCTTG_100
+    splice_junction | tr_id | 5' upstream extension _ microexon_seq _ 3' upstream extension
+
+    splice_junction ('microexon_coords') values inside nested dict of microexon_dict would be represented as
+    chr17:42981074+42987255 - can match to ref_name.split('|')[0]
+
+    microexon sequence ('mex_sequence') values inside nested dict would be represented as
+    GGCTTG - can match to ref_name.split('|')[2].split('_')[1]
+
+    if both satisfied then return reference sequence name in dict
+    '''
+
+    # 1. Generate list of tuples of (splice_junction, mex_sequence) from nested dicts in microexon_dict
+    #make this nested dict of {microexon: (splice_junction,mex_sequence)}
+    sj_seq_tuples = [tuple([nested_dict.get('splice_junction'), nested_dict.get('mex_sequence')]) for nested_dict in microexon_dict.values()]
+
+    # 2. Iterate over tuple of reference sequence names, report if splice junctions and microexon sequences match any tuples in sj_seq_tuples
+    ref_seq_dict = {}
+    #also initiate dict where will store {(splice_junction,me_seq): microexon_coords}
+
+    for ref_name in pysam_bam.references:
+        #this should then iterate over .items of dict
+        #if all conditions matched, update ref_seq_dict and tuple_microexon_dict (tuple: microexon(key))
+        for mex_tup in sj_seq_tuples:
+            #sj_coords can contain multiple entries, separated by comma - check each one
+            if ',' in mex_tup[0]:
+                sj_coords = mex_tup[0].split(',')
+                for coords in sj_coords:
+                    #do (1) sj coords and (2) mex_sequences match?
+                    if coords == ref_name.split('|')[0] and mex_tup[1] == ref_name.split('|')[2].split('_')[1]:
+                        ref_seq_dict[tuple([coords, mex_tup[1]])] = ref_name
+
+            else:
+                #do (1) sj coords and (2) mex_sequences match?
+                if mex_tup[0] == ref_name.split('|')[0] and mex_tup[1] == ref_name.split('|')[2].split('_')[1]:
+                    ref_seq_dict[mex_tup] = ref_name
+                else:
+                    continue
+
+    return ref_seq_dict
+
+def initial_pileup(bam, seq_name_list):
+    '''
+    Calculate per nucleotide coverage for all reference sequence names in seq_name_list using pysam pileup
     Return nested dict of {Reference name: {position: coverage}}
     (first pass - returns values for bases with coverage only)
     '''
@@ -119,7 +162,7 @@ def initial_pileup(bam):
 
     #bam.references returns large list of reference sequence names
     #Try bundling reference_tags into generator expression, so not all sequence names are stored in memory
-    for reference_tag in (ref for ref in bam.references):
+    for reference_tag in (ref for ref in seq_name_list):
 
     #    if 'MULTI' in reference_tag:
             # This means I removed '(' or ')' from the header of BAM file (see Round2.skm sam_to_bam)
@@ -210,14 +253,28 @@ if __name__ == '__main__':
 
     #load results tables into dictionary of {microexon_coords: {'splice_junction': coords, 'mex_sequence': string, transcript = 'transcript'}}
     microexon_info_dict = all_microexons_dict(results_csvs)
-    print(microexon_info_dict)
-    print(len(microexon_info_dict.keys()))
-    
-    '''
-    bamfile = pysam.AlignmentFile(bamfile,"rb")
+    #print(microexon_info_dict)
+    #print(len(microexon_info_dict.keys()))
 
+    #dict of {(sj_coords, me_seq): 'ref_seq_name'} mapping identified microexons to reference sequence names - values passed to pysam.pileup() to generate intiial coverages
+    bamfile = pysam.AlignmentFile(bamfile,"rb")
+    microexon_ref_seq_names = get_mex_reference_names(microexon_info_dict,bamfile)
+    #print(microexon_ref_seq_names)
+    #print(len(microexon_ref_seq_names.values()))
+
+    bam_pileup_dict = initial_pileup(bamfile, microexon_ref_seq_names.values())
 
     print_list = ["chr16:28152785-28156073|MULTI2|100_AATATGGGGCTCCTGGTGAGGAACAGAAAG_100","chrY:9545006-9545124|ENST00000421178.2|100_90","chr17:42981074+42987255|ENST00000361677.5|100_GGCTTG_100"]
+    for ref in print_list:
+        print(ref,bam_pileup_dict.get(ref))
+
+    print(len(bam_pileup_dict.keys()))
+
+    '''
+
+
+
+
 
     #generate dictionary of {reference_sequence_name: {position: n_reads}} using pysam.pileup
     bam_pileup_dict = initial_pileup(bamfile)
