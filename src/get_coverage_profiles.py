@@ -35,9 +35,9 @@ def ref_name_add_brackets(string):
     '''
     split_str = string.split('|')
     #2nd element of split_str - |MULTI<number> | is offending party need to add back in
-    fixed_multi = split_str[1][:5] + '(' + split_str[1][6:] + ')'
+    fixed_multi = split_str[1][:5] + '(' + split_str[1][5:] + ')'
 
-    return '|'.join(split_str[0], fixed_multi, split_str[2])
+    return '|'.join([split_str[0], fixed_multi, split_str[2]])
 
 def initial_pileup(bam):
     '''
@@ -51,26 +51,27 @@ def initial_pileup(bam):
     #Try bundling reference_tags into generator expression, so not all sequence names are stored in memory
     for reference_tag in (ref for ref in bam.references):
 
-        if 'MULTI' in reference_tag:
+    #    if 'MULTI' in reference_tag:
             # This means I removed '(' or ')' from the header of BAM file (see Round2.skm sam_to_bam)
             # bam.references fetches references sequence names from @SQ SN:<name> lines in header (by looks of it...)
             # I did not edit the Reference sequence names in column 3 of SAM/BAM alignment lines
             # pileup would return empty values if don't add brackets back into sequence name for query
 
-            if '(' not in reference_tag and ')' not in reference_tag:
+    #        if '(' not in reference_tag and ')' not in reference_tag:
                 #add brackets back in
-                fixed_ref_tag = ref_name_add_brackets(reference_tag)
-                reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(fixed_ref_tag)}
-                pileup_dict[reference_tag] = reference_cov
+    #            fixed_ref_tag = ref_name_add_brackets(reference_tag)
+    #            reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(fixed_ref_tag)}
+    #            pileup_dict[reference_tag] = reference_cov
 
-            else:
+    #        else:
                 #proceed as normal
-                reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
-                pileup_dict[reference_tag] = reference_cov
+    #            reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
+    #            pileup_dict[reference_tag] = reference_cov
 
-        else:
-            reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
-            pileup_dict[reference_tag] = reference_cov
+    #    else:
+          
+        reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
+        pileup_dict[reference_tag] = reference_cov
 
     return pileup_dict
 
@@ -142,9 +143,8 @@ if __name__ == '__main__':
     #generate dictionary of {reference_sequence_name: {position: n_reads}} using pysam.pileup
     bam_pileup_dict = initial_pileup(bamfile)
 
-    for ref_name, pileup_dict in bam_pileup_dict.items():
-        if ref_name in print_list:
-            print(ref_name,pileup_dict)
+    for ref_name in print_list:
+        print(ref_name,bam_pileup_dict.get(ref_name))	
 
     bamfile.close()
 
@@ -152,5 +152,8 @@ if __name__ == '__main__':
     # Initial pileup dict only returns positions where coverage > 0
     # Need to generate coverage values for all positions in sequence tag
     bam_pileup_dict = fill_pileup_dict(bam_pileup_dict)
+
+    for ref_name in print_list:
+        print(ref_name,bam_pileup_dict.get(ref_name))
 
     #Now have nested dict of {ref_tag_name: OrderedDict(position: coverage)} where OrderedDict stores positions in ascending order!
