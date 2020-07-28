@@ -125,16 +125,18 @@ def get_mex_reference_names(microexon_dict,pysam_bam):
 
     # 1. Generate list of tuples of (splice_junction, mex_sequence) from nested dicts in microexon_dict
     #make this nested dict of {microexon: (splice_junction,mex_sequence)}
-    sj_seq_tuples = [tuple([nested_dict.get('splice_junction'), nested_dict.get('mex_sequence')]) for nested_dict in microexon_dict.values()]
+    #sj_seq_tuples = [tuple([nested_dict.get('splice_junction'), nested_dict.get('mex_sequence')]) for nested_dict in microexon_dict.values()]
+    sj_seq_tuples = {tuple([nested_dict.get('splice_junction'), nested_dict.get('mex_sequence')]): microexon for microexon, nested_dict in microexon_info_dict.items()}
 
     # 2. Iterate over tuple of reference sequence names, report if splice junctions and microexon sequences match any tuples in sj_seq_tuples
+    # also initiate dict where will store {(splice_junction,me_seq): microexon_coords}
     ref_seq_dict = {}
-    #also initiate dict where will store {(splice_junction,me_seq): microexon_coords}
+    sj_seq_mex_dict = {}
 
     for ref_name in pysam_bam.references:
         #this should then iterate over .items of dict
         #if all conditions matched, update ref_seq_dict and tuple_microexon_dict (tuple: microexon(key))
-        for mex_tup in sj_seq_tuples:
+        for mex_tup, microexon in sj_seq_tuples.items():
             #sj_coords can contain multiple entries, separated by comma - check each one
             if ',' in mex_tup[0]:
                 sj_coords = mex_tup[0].split(',')
@@ -142,15 +144,16 @@ def get_mex_reference_names(microexon_dict,pysam_bam):
                     #do (1) sj coords and (2) mex_sequences match?
                     if coords == ref_name.split('|')[0] and mex_tup[1] == ref_name.split('|')[2].split('_')[1]:
                         ref_seq_dict[tuple([coords, mex_tup[1]])] = ref_name
-
+                        sj_seq_mex_dict[tuple([coords, mex_tup[1]])] = microexon
             else:
                 #do (1) sj coords and (2) mex_sequences match?
                 if mex_tup[0] == ref_name.split('|')[0] and mex_tup[1] == ref_name.split('|')[2].split('_')[1]:
                     ref_seq_dict[mex_tup] = ref_name
+                    sj_seq_mex_dict[mex_tup] = microexon
                 else:
                     continue
 
-    return ref_seq_dict
+    return ref_seq_dict, sj_seq_mex_dict
 
 def initial_pileup(bam, seq_name_list):
     '''
@@ -242,6 +245,138 @@ def fill_pileup_dict(pileup_dict):
 
     return complete_pileup_dict
 
+def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microexon_dict):
+    '''
+    return dict of {reference_tag: {genome_coord: coverage}} where coordinate integer corresponds to actual coordinate (NOT an index to coordinate)
+    For each reference tag, convert index based coverage data to corresponding genome coordinates
+    reference tag chrY:5501255+5737271|ENST00000400457.3|100_CTTTCATACCTGGACTAAAGAAAG_100
+    sj_seq_tuple and microexon_coords ('chrY:5501255+5737271', 'CTTTCATACCTGGACTAAAGAAAG'): 'chrY_+_5581774_5581798'
+    Assumptions: coordinates follow BED conventions
+    '''
+    genome_cov_dict = {}
+
+    for sj_seq_tuple, ref_name in tuples_reference_dict.items():
+        # 1. Parse out 5' upstream & 3' downstream of sj distances from end of ref_name
+        upstream_ext_length = int(ref_name.split('|')[2].split('_')[0])
+        downstream_ext_length = int(ref_name.split('|')[2].split('_')[-1])
+
+        #2. extract 5' splice junction coord and 3' splice junction coord from start of ref name
+        #defining as 5' & 3' based on genomic coordinate (not relative to gene/strand)
+        if '+' in sj_seq_tuple[0]:
+            sj_coord5 = int(sj_seq_tuple[0].split('+')[0].split(':')[1])
+            sj_coord3 = int(sj_seq_tuple[0].split('+')[1])
+        elif '-' in sj_seq_tuple[0]:
+            sj_coord5 = int(sj_seq_tuple[0].split('-')[0].split(':')[1])
+            sj_coord3 = int(sj_seq_tuple[0].split('-')[1])
+
+        #3. Get range of genomic coordinates for regions upstream of 5' splice coord & downstream of 3' splice coord
+        #range(1,5) includes 1 but not 5, but BED conventions state genomic range of 1-5 encompasses nucleotides 2-5 (0-based start, 1-based end)
+        #To go from pythonic to (BED) genomic - need to add one to both 'start' & 'end' (i.e. for grange 1-5, pass range 2-6 to return 2,3,4,5)
+        genome_coords5 = [coord for coord in range((sj_coord5 - upstream_ext_length) + 1, sj_coord5 + 1)]
+        genome_coords3 = [coord for coord in range((sj_coord3 + 1), (sj_coord3 + downstream_ext_length) + 1)]
+
+        # 4. Get genome coordinates of microexon given splice junction & sequence tuples
+        mex_genome_coords_str = tuples_microexon_dict.get(sj_seq_tuple)
+        #Again assume provided microexon coordinates follow BED12 convention - start is 0 based and end is 1-based
+        mex_coord_start = int(mex_genome_coords_str.split('_')[-2]) + 1
+        mex_coord_end = int(mex_genome_coords_str.split('_')[-1])
+
+        #for range() function to include mex_coord_end value, need to add 1
+        mex_genome_coords = [coord for coord in range(mex_coord_start, mex_coord_end + 1)]
+
+        # 5. Join lists together in most 5' - most 3' order - indexes in coverage dict start from leftmost genome coordinate in reference_tag
+        genome_coords5.extend(mex_genome_coords)
+        genome_coords5.extend(genome_coords3)
+
+        #genome_cov_dict[ref_name] = genome_coords5
+
+        #6. Map genome coordinates to coverage values in nested OrderedDict in pileup_dict for given reference name
+        #Expect number of genome coordinates to match number of keys (coordinates) in OrderedDict
+        coverage_dict = pileup_dict.get(ref_name)
+        if len(genome_coords5) != len(coverage_dict.values()):
+            raise Exception("Number of generated genome coordinates does not match the number of coordinates computed for reference region. Double check how generating genome coordinates")
+
+        else:
+            coords_cov_dict = OrderedDict()
+            #use enumerate over reference's ordered dict - use idx to extract genome coordinate from genome_coords5 and key to get coverage value
+            for idx, key in enumerate(coverage_dict):
+                #coordinate: coverage
+                coords_cov_dict[genome_coords5[idx]] = coverage_dict.get(key)
+
+            #ref_name: coords_cov_dict
+            genome_cov_dict[ref_name] = coords_cov_dict
+
+    return genome_cov_dict
+
+
+def coord_coverage_to_chrs(coord_pileup_dict):
+    '''
+    return dictionary of {chr :{coord: coverage}} from pileup dict of {reference_name: OrderedDict((coord: coverage))}
+    '''
+
+    chrs_cov_dict = {}
+
+    for ref_name, coverage_dict in coord_pileup_dict.items():
+        chr = ref_name.split(':')[0]
+
+        if chr not in chrs_cov_dict:
+            chrs_cov_dict[chr] = dict(coverage_dict) #coverage_dict is OrderedDict - want a normal one
+            continue
+        else:
+            for coord, coverage in coverage_dict.items():
+                if coord not in chrs_cov_dict.get(chr):
+                    chrs_cov_dict[chr][coord] = coverage
+                #Expect same genome coordinate from different reference sequence names to have exactly same number of reads covering its position
+                elif coverage != chrs_cov_dict[chr][coord]:
+                    raise Exception("genome coordinate {0} has different total coverages reported for different reference splice junctions that share it".format(coord))
+
+    return chrs_cov_dict
+
+
+def chrs_coverage_to_bed(chrs_cov_dict):
+    '''
+    Print coverage values in tab-delimited BEDgraph half-open coordinate format (start 0 based, end 1 based)
+    <chr> \t <start> \t <end> \t <coverage value>
+    Chromosomes and coordinates sorted in ascending order (i.e. smallest first)
+    chr1..chr<last> then named chrs in alphabetical order
+    Takes dict of {chr: {coordinate: coverage} }, where coordinate key represents value of corresponding genome coordinate
+    '''
+
+    numbered_chrs = []
+    lettered_chrs = []
+
+    for chr in chrs_cov_dict.keys():
+        try:
+            numbered_chrs.append(int(chr.split('chr')[-1]))
+        except ValueError:
+            lettered_chrs.append(chr.split('chr')[-1])
+
+    #first print ascending order sorted numbered_chrs
+    for chr in sorted(numbered_chrs):
+        coverage_dict = chrs_cov_dict.get('chr'+str(chr))
+        # items tuple approach coverage dict will sort keys (coordinates, integer) in ascending order
+        for coord, cov in sorted(coverage_dict.items()):
+            #BED are half open - so for coverage to represent actual coordinate need coord to be end (and start is coord -1)
+            print('\t'.join(['chr'+str(chr), str(coord - 1), str(coord), str(cov)]))
+
+    #then add on lettered chromosomes (in alphabetical order)
+    for chr in sorted(lettered_chrs):
+        coverage_dict = chrs_cov_dict.get('chr'+str(chr))
+        # items tuple approach coverage dict will sort keys (coordinates, integer) in ascending order
+        for coord, cov in sorted(coverage_dict.items()):
+            #BED are half open - so for coverage to represent actual coordinate need coord to be end (and start is coord -1)
+            print('\t'.join(['chr'+str(chr), str(coord - 1), str(coord), str(cov)]))
+
+
+
+    #for chr, coverage_dict in sorted(chrs_cov_dict.items()):
+        #chromosomes sorted in ascending order - now for each chromosome need coordinates to be sorted in ascending order
+        #tuple approach again with coverage dict will sort keys (coordinates) in ascending order
+    #    for coord, cov in sorted(coverage_dict.items()):
+            #BED are half open - so for coverage to represent actual coordinate need coord to be end (and start is coord -1)
+    #        print('\t'.join([chr, str(coord - 1), str(coord), str(cov)]))
+
+
 if __name__ == '__main__':
 
     #bamfile = "/home/sam/cluster/sbs_projects/MicroExonator_fork/MicroExonator/Round2/Ward_CTL_1.bam"
@@ -258,17 +393,46 @@ if __name__ == '__main__':
 
     #dict of {(sj_coords, me_seq): 'ref_seq_name'} mapping identified microexons to reference sequence names - values passed to pysam.pileup() to generate intiial coverages
     bamfile = pysam.AlignmentFile(bamfile,"rb")
-    microexon_ref_seq_names = get_mex_reference_names(microexon_info_dict,bamfile)
+
+    #(1) = {(sj_coords, me_seq): 'ref_seq_name'}, (2) = {(sj_coords, me_seq): 'microexon'}
+    microexon_ref_seq_names, sj_seq_microexon_dict  = get_mex_reference_names(microexon_info_dict,bamfile)
     #print(microexon_ref_seq_names)
     #print(len(microexon_ref_seq_names.values()))
+    #print(sj_seq_microexon_dict)
 
-    bam_pileup_dict = initial_pileup(bamfile, microexon_ref_seq_names.values())
+    print_list = ["chrY:9545006-9545124|ENST00000421178.2|100_90","chr17:42981074+42987255|ENST00000361677.5|100_GGCTTG_100","chr2:98546694+98552785|ENST00000409851.8|100_CAGTTTTGAGGAGTGTTG_100", "chr7:128393028-128394277|ENST00000469328.5|100_CTATACCTTTCTGCCGT_100"]
+    print_tuple_list = [key for key, val in microexon_ref_seq_names.items() if val in print_list]
+    print_dict = {key: val for key, val in microexon_ref_seq_names.items() if val in print_list}
+    sj_print_dict = {key: val for key, val in sj_seq_microexon_dict.items() if key in print_tuple_list}
 
-    print_list = ["chr16:28152785-28156073|MULTI2|100_AATATGGGGCTCCTGGTGAGGAACAGAAAG_100","chrY:9545006-9545124|ENST00000421178.2|100_90","chr17:42981074+42987255|ENST00000361677.5|100_GGCTTG_100"]
-    for ref in print_list:
-        print(ref,bam_pileup_dict.get(ref))
 
-    print(len(bam_pileup_dict.keys()))
+    bam_pileup_dict = initial_pileup(bamfile, print_dict.values())
+    bamfile.close()
+    
+    #for ref in print_list:
+    #    print(ref, bam_pileup_dict.get(ref))
+
+    # Initial pileup dict only returns positions where coverage > 0
+    # Need to generate coverage values for all positions in sequence tag
+    bam_pileup_dict = fill_pileup_dict(bam_pileup_dict)
+
+    #for ref_name in print_list:
+    #    print(ref_name,bam_pileup_dict.get(ref_name))
+
+    # convert coverages positions for reference tags (currently stored as index) to genome coordinates for tag
+    #{ref_name: OrderedDict((coord, coverage))}
+    bam_pileup_dict = pileup_to_genome_coordinates(bam_pileup_dict, print_dict, sj_print_dict)
+    #bam_pileup_dict = pileup_to_genome_coordinates(bam_pileup_dict,microexon_ref_seq_names, sj_seq_microexon_dict)
+
+    #for ref in print_list:
+    #    print(ref,bam_pileup_dict.get(ref))
+
+    #get dictionary of {chr: {coord: coverage}} from reference sequence names
+    chrs_pileup_dict = coord_coverage_to_chrs(bam_pileup_dict)
+    #print(chrs_pileup_dict)
+
+    #prints to STDOUT
+    chrs_coverage_to_bed(chrs_pileup_dict)
 
     '''
 
@@ -285,12 +449,13 @@ if __name__ == '__main__':
     bamfile.close()
 
 
-    # Initial pileup dict only returns positions where coverage > 0
-    # Need to generate coverage values for all positions in sequence tag
-    bam_pileup_dict = fill_pileup_dict(bam_pileup_dict)
 
-    for ref_name in print_list:
-        print(ref_name,bam_pileup_dict.get(ref_name))
 
     #Now have nested dict of {ref_tag_name: OrderedDict(position: coverage)} where OrderedDict stores positions in ascending order!
+
+    #sj_seq_tuple to microexon coords dict
+    {('chrX:81118759-81121534', 'GCTGCAGGTCAAGGTGATATGAGGCAGGAG'): 'chrX_-_81119787_81119817', ('chrX:81118780-81121534', 'GCTGCAGGTCAAGGTGATATGAGGCAGGAG'): 'chrX_-_81119787_81119817', ('chrX:92201455+92387734', 'CGGAAATCTGAAGGGAAAGTGGCAGGAAAG'): 'chrX_+_92263113_92263143', ('chrX:92387933+92618263', 'CTTTCATACCTGGACTAAAGAAAG'): 'chrX_+_92468298_92468322', ('chrY:13869128+13871632', 'ACTTAAGGAGCATGAG'): 'chrY_+_13869661_13869677', ('chrY:5501255+5737271', 'CTTTCATACCTGGACTAAAGAAAG'): 'chrY_+_5581774_5581798', ('chrY:57210792+57211760', 'TGAGAGCCACGAGCCAAG'): 'chrY_+_57211551_57211569'}
+
+
+
     '''
