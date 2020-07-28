@@ -403,13 +403,13 @@ if __name__ == '__main__':
     #print(len(microexon_ref_seq_names.values()))
     #print(sj_seq_microexon_dict)
 
-    print_list = ["chrY:9545006-9545124|ENST00000421178.2|100_90","chr17:42981074+42987255|ENST00000361677.5|100_GGCTTG_100","chr2:98546694+98552785|ENST00000409851.8|100_CAGTTTTGAGGAGTGTTG_100", "chr7:128393028-128394277|ENST00000469328.5|100_CTATACCTTTCTGCCGT_100"]
-    print_tuple_list = [key for key, val in microexon_ref_seq_names.items() if val in print_list]
-    print_dict = {key: val for key, val in microexon_ref_seq_names.items() if val in print_list}
-    sj_print_dict = {key: val for key, val in sj_seq_microexon_dict.items() if key in print_tuple_list}
+    #print_list = ["chrY:9545006-9545124|ENST00000421178.2|100_90","chr17:42981074+42987255|ENST00000361677.5|100_GGCTTG_100","chr2:98546694+98552785|ENST00000409851.8|100_CAGTTTTGAGGAGTGTTG_100", "chr7:128393028-128394277|ENST00000469328.5|100_CTATACCTTTCTGCCGT_100"]
+    #print_tuple_list = [key for key, val in microexon_ref_seq_names.items() if val in print_list]
+    #print_dict = {key: val for key, val in microexon_ref_seq_names.items() if val in print_list}
+    #sj_print_dict = {key: val for key, val in sj_seq_microexon_dict.items() if key in print_tuple_list}
 
 
-    bam_pileup_dict = initial_pileup(bamfile, print_dict.values())
+    bam_pileup_dict = initial_pileup(bamfile, microexon_ref_seq_names.values())
     bamfile.close()
 
     #for ref in print_list:
@@ -424,8 +424,8 @@ if __name__ == '__main__':
 
     # convert coverages positions for reference tags (currently stored as index) to genome coordinates for tag
     #{ref_name: OrderedDict((coord, coverage))}
-    bam_pileup_dict = pileup_to_genome_coordinates(bam_pileup_dict, print_dict, sj_print_dict)
-    #bam_pileup_dict = pileup_to_genome_coordinates(bam_pileup_dict,microexon_ref_seq_names, sj_seq_microexon_dict)
+    #bam_pileup_dict = pileup_to_genome_coordinates(bam_pileup_dict, print_dict, sj_print_dict)
+    bam_pileup_dict = pileup_to_genome_coordinates(bam_pileup_dict,microexon_ref_seq_names, sj_seq_microexon_dict)
 
     #for ref in print_list:
     #    print(ref,bam_pileup_dict.get(ref))
