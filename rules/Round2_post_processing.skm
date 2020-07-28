@@ -148,7 +148,7 @@ rule bam_to_coverage_bedgraph:
         "Round2/{sample}.microexons.bedGraph"
 
     params:
-        ','.join(input[2:])
+        lambda wildcards, input: ','.join(input[2:])
 
     conda:
         "../envs/core_py3.yaml"
