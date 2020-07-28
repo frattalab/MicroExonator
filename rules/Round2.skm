@@ -95,6 +95,7 @@ rule sam_to_bam:
     () characters are invalid reference sequence names for SAM/BAM files (see regex in specs)
     Remove () characters from alignment lines (column 3) & header before conversion to BAM
     Some SN:<sequence_name> are also duplicated in header - one @SQ tag per sequence name only
+    Currently a bug with samtools using conda environment... try and solve
     '''
 
     input:
@@ -104,27 +105,27 @@ rule sam_to_bam:
         "Round2/{sample}.bam",
         "Round2/{sample}.bam.bai"
 
-    conda:
-        "../envs/core.yaml"
+    #conda:
+    #    "../envs/core.yaml"
 
-    #params:
-    #    config['samtools_path']
+    params:
+        config['samtools_path']
 
     shell:
         """
-        samtools view -H {input} |\
+        {params} view -H {input} |\
         tr -d '()' |\
         sort -u > {input}.header
 
-        samtools view {input} | awk 'BEGIN{{FS=OFS="\\t"}} {{gsub(/\(|\)/, "", $3)}} 1' - > {input}.alignments
+        {params} view {input} | awk 'BEGIN{{FS=OFS="\\t"}} {{gsub(/\(|\)/, "", $3)}} 1' - > {input}.alignments
 
         cat {input}.header {input}.alignments > {input}.concat
-	rm {input}.header {input}.alignments
+        rm {input}.header {input}.alignments
 
-        samtools sort -o {output[0]} {input}.concat        
+        {params} sort -o {output[0]} {input}.concat
         rm {input}.concat
 
-        samtools index {output[0]} {output[1]}
+        {params} index {output[0]} {output[1]}
         """
 
 
