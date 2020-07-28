@@ -21,7 +21,7 @@ include : "rules/Get_data.skm"
 rule quant:
     input:
         "Report/out.high_quality.txt",
-        "Round2/{sample}.microexons.bedGraph"
+        expand("Round2/{sample}.microexons.bedGraph", sample=DATA)
         #expand("Round2/{sample}.bam",sample=DATA),
         #expand("Round2/{sample}.bam.bai",sample=DATA)
         #"Report/out_filtered_ME.PSI.txt",
