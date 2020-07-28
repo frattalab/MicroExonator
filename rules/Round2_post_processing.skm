@@ -126,11 +126,12 @@ rule high_confident_filters:
         "Report/out_filtered_ME.txt",
         "Report/out_low_scored_ME.txt"
     output:
-        "Report/out.high_quality.txt"
+        "Report/out.high_quality.txt",
+        "Report/out.ambiguous.txt"
     conda:
         "../envs/core_py3.yaml"
     shell:
-        "python src/high_confident_list.py {input}  > {output}"
+        "python src/high_confident_list.py {input}  > {output[0]}"
 
 
 rule coverage_to_PSI:
