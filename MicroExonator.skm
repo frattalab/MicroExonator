@@ -13,7 +13,7 @@ def str2bool(v):
   else:
     return v.lower() in ("yes", "true", "t", "1")
 
-#Moved here so DATA is filled before targets are defined in the first rule (quant) - expand calls work as intended 
+#Moved here so DATA is filled before targets are defined in the first rule (quant) - expand calls work as intended
 #https://snakemake.readthedocs.io/en/stable/snakefiles/modularization.html#includes
 include : "rules/init.skm"
 include : "rules/Get_data.skm"
@@ -21,8 +21,9 @@ include : "rules/Get_data.skm"
 rule quant:
     input:
         "Report/out.high_quality.txt",
-        expand("Round2/{sample}.bam",sample=DATA),
-        expand("Round2/{sample}.bam.bai",sample=DATA)
+        "Round2/{sample}.microexons.bedGraph"
+        #expand("Round2/{sample}.bam",sample=DATA),
+        #expand("Round2/{sample}.bam.bai",sample=DATA)
         #"Report/out_filtered_ME.PSI.txt",
         #"Report/stats/Microexons.not_consensus",
         #"Report/stats/Microexons.annotation.stats"

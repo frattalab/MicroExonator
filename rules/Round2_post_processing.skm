@@ -9,7 +9,7 @@ rule ME_reads:
         "../envs/core.yaml"
     shell:
         "python2 src/round2_ME_reads_fastq.py {input} > {output}"
-        
+
 rule Get_Genome:
     input:
         config["Genome_fasta"]
@@ -93,14 +93,14 @@ rule write_ME_matches:
         "../envs/core_py3.yaml"
     shell:
         "python3 src/Get_ME_matches.py {input} > {output}"
-    
+
 
 rule Output:
     input:
         "Round2/TOTAL.ME_centric.txt",
         "Round2/TOTAL.filter1.ME_SJ_coverage",
         "Round2/TOTAL.ME_centric.ME_matches.txt"
-        
+
     params:
         wd = config["working_directory"],
         min_number_files_detected = config["min_number_files_detected"]
@@ -134,12 +134,35 @@ rule high_confident_filters:
         "python src/high_confident_list.py {input}  > {output[0]}"
 
 
+rule bam_to_coverage_bedgraph:
+    input:
+        "Round2/{sample}.bam",
+        "Round2/{sample}.bam.bai",
+        "Report/out_filtered_ME.txt",
+        "Report/out_low_scored_ME.txt",
+        "Report/out_shorter_than_3_ME.txt",
+        "Report/out.high_quality.txt",
+        "Report/out.ambiguous.txt"
+
+    output:
+        "Round2/{sample}.microexons.bedGraph"
+
+    params:
+        ','.join(input[2:])
+
+    conda:
+        "../envs/core_py3.yaml"
+
+    shell:
+        "python src/get_coverage_profiles.py {input[0]} {params} > {output}"
+
+
 rule coverage_to_PSI:
     input:
         "Report/out_filtered_ME.cov.txt",
     params:
         config["min_reads_PSI"],
-        config["paired_samples"]    
+        config["paired_samples"]
     output:
         "Report/out_filtered_ME.PSI.txt"
     conda:
