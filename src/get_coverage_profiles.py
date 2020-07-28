@@ -333,7 +333,7 @@ def coord_coverage_to_chrs(coord_pileup_dict):
     return chrs_cov_dict
 
 
-def chrs_coverage_to_bed(chrs_cov_dict):
+def chrs_coverage_to_bed(chrs_cov_dict,header="type=bedGraph"):
     '''
     Print coverage values in tab-delimited BEDgraph half-open coordinate format (start 0 based, end 1 based)
     <chr> \t <start> \t <end> \t <coverage value>
@@ -350,6 +350,9 @@ def chrs_coverage_to_bed(chrs_cov_dict):
             numbered_chrs.append(int(chr.split('chr')[-1]))
         except ValueError:
             lettered_chrs.append(chr.split('chr')[-1])
+
+    # Before printing values, need a header line (currently minimum is "type=bedGraph")
+    print(header)
 
     #first print ascending order sorted numbered_chrs
     for chr in sorted(numbered_chrs):
@@ -408,7 +411,7 @@ if __name__ == '__main__':
 
     bam_pileup_dict = initial_pileup(bamfile, print_dict.values())
     bamfile.close()
-    
+
     #for ref in print_list:
     #    print(ref, bam_pileup_dict.get(ref))
 
