@@ -311,26 +311,32 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
 
 def coord_coverage_to_chrs(coord_pileup_dict):
     '''
-    return dictionary of {chr :{coord: coverage}} from pileup dict of {reference_name: OrderedDict((coord: coverage))}
+    return dictionary of {chr :{coord: coverage}} from coord_pileup dict of {reference_name: OrderedDict((coord: coverage))}
+    return dictionary of {chr :{coord: reference_name}} - track which reference name is contributing coverage value at that coordinate
+    returned as tuple of coverage dictionaries (coverage then reference name)
+    e.g. reference tag chrY:5501255+5737271|ENST00000400457.3|100_CTTTCATACCTGGACTAAAGAAAG_100
     '''
 
-    chrs_cov_dict = {}
+    chrs_cov_dict = {} # {chr: {coord: coverage}}
+    chrs_coord_ref_dict = {} # {chr: {coord: reference_name}}
 
     for ref_name, coverage_dict in coord_pileup_dict.items():
         chr = ref_name.split(':')[0]
 
         if chr not in chrs_cov_dict:
             chrs_cov_dict[chr] = dict(coverage_dict) #coverage_dict is OrderedDict - want a normal one
+            chrs_coord_ref_dict[chr] = {coord: ref_name for coord in coverage_dict.keys()}
             continue
         else:
             for coord, coverage in coverage_dict.items():
                 if coord not in chrs_cov_dict.get(chr):
                     chrs_cov_dict[chr][coord] = coverage
-                #Expect same genome coordinate from different reference sequence names to have exactly same number of reads covering its position
+                    chrs_coord_ref_dict[chr][coord] = ref_name
+                #Expect same genome coordinate from different reference sequence names to have exactly same number of reads covering its position - is that so? 29/07
                 elif coverage != chrs_cov_dict[chr][coord]:
-                    raise Exception("genome coordinate {0} has different total coverages reported for different reference splice junctions that share it".format(coord))
+                    raise Exception("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
 
-    return chrs_cov_dict
+    return chrs_cov_dict, chrs_coord_ref_dict
 
 
 def chrs_coverage_to_bed(chrs_cov_dict,header="type=bedGraph"):
@@ -430,8 +436,8 @@ if __name__ == '__main__':
     #for ref in print_list:
     #    print(ref,bam_pileup_dict.get(ref))
 
-    #get dictionary of {chr: {coord: coverage}} from reference sequence names
-    chrs_pileup_dict = coord_coverage_to_chrs(bam_pileup_dict)
+    #get dictionary of {chr: {coord: coverage}} & {chr: {coord: ref_name}} from reference sequence names
+    chrs_pileup_dict, chrs_pileup_references_dict = coord_coverage_to_chrs(bam_pileup_dict)
     #print(chrs_pileup_dict)
 
     #prints to STDOUT
