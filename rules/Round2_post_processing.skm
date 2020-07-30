@@ -153,8 +153,11 @@ rule bam_to_coverage_bedgraph:
     conda:
         "../envs/core_py3.yaml"
 
+    log:
+        "logs/coverage_profiles/{sample}.log"
+
     shell:
-        "python src/get_coverage_profiles.py {input[0]} {params} > {output}"
+        "python src/get_coverage_profiles.py {input[0]} {params} > {output} 2> {log}"
 
 
 rule coverage_to_PSI:
