@@ -22,7 +22,7 @@ import csv
 import sys
 import pysam
 import os
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 
 
 ######-------------------------
@@ -318,26 +318,48 @@ def coord_coverage_to_chrs(coord_pileup_dict):
     '''
 
     chrs_cov_dict = {} # {chr: {coord: coverage}}
-    chrs_coord_ref_dict = {} # {chr: {coord: reference_name}}
+    chrs_coord_tag_dict = {} # {chr: {coord: reference_name}}
+    conflicting_tags_dict = {} # {(tag1, tag2): {coord: (tag1_cov, tag2_cov)}} where reference_name already present in chrs_coord_tag_dict
 
     for ref_name, coverage_dict in coord_pileup_dict.items():
         chr = ref_name.split(':')[0]
 
         if chr not in chrs_cov_dict:
             chrs_cov_dict[chr] = dict(coverage_dict) #coverage_dict is OrderedDict - want a normal one
-            chrs_coord_ref_dict[chr] = {coord: ref_name for coord in coverage_dict.keys()}
+            chrs_coord_tag_dict[chr] = {coord: ref_name for coord in coverage_dict.keys()}
             continue
         else:
             for coord, coverage in coverage_dict.items():
                 if coord not in chrs_cov_dict.get(chr):
                     chrs_cov_dict[chr][coord] = coverage
-                    chrs_coord_ref_dict[chr][coord] = ref_name
+                    chrs_coord_tag_dict[chr][coord] = ref_name
+
                 #Expect same genome coordinate from different reference sequence names to have exactly same number of reads covering its position - is that so? 29/07
                 elif coverage != chrs_cov_dict[chr][coord]:
-                    sys.stderr.write("conflicting_coverages\t{1}\t{0}\t{3}\t{2}\t{5}\t{4}\n".format(coord, chr, chrs_cov_dict[chr][coord], chrs_coord_ref_dict[chr][coord], coverage, ref_name))
+                    #tags cover same genomic coordinates but have conflicting read coverage - want to store in conflicting_tags_dict for future resolving
+
+                    if tuple([chrs_coord_tag_dict[chr][coord], ref_name]) not in conflicting_tags_dict:
+                        conflicting_tags_dict[tuple([chrs_coord_tag_dict[chr][coord], ref_name])] = {coord: tuple([chrs_cov_dict[chr][coord], coverage])}
+                    else:
+                        conflicting_tags_dict[tuple([chrs_coord_tag_dict[chr][coord], ref_name])][coord] = tuple([chrs_cov_dict[chr][coord], coverage])
+
+
+
+    #conflicting_tags_dict - how many conflicting regions?
+    sys.stderr.write("{0} regions covered by multiple reference sequence tags have conflicting coverages\n".format(len(set([key[0] for key in conflicting_tags_dict.keys()]))))
+    #For all regions, how many regions have conflicts between multiple pairs of reference tags?
+    #1. how many times/conflicts does each tag1 appear in conflicting
+    #2. how many tags have n conflicts
+    conflict_counts = Counter(Counter([key[0] for key in conflicting_tags_dict.keys()]).values())
+    for n_conflicts, n_regions in conflict_counts.items():
+        sys.stderr.write("{0} regions/sequence tags have {1} conflicting tag pairs".format(n_regions, n_conflicts))
+
+
+
+                    #sys.stderr.write("conflicting_coverages\t{1}\t{0}\t{3}\t{2}\t{5}\t{4}\n".format(coord, chr, chrs_cov_dict[chr][coord], chrs_coord_ref_dict[chr][coord], coverage, ref_name))
                     #raise Exception("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
 
-    return chrs_cov_dict, chrs_coord_ref_dict
+    return chrs_cov_dict, chrs_coord_tag_dict, conflicting_tags_dict
 
 
 def chrs_coverage_to_bed(chrs_cov_dict,header="type=bedGraph"):
@@ -438,7 +460,7 @@ if __name__ == '__main__':
     #    print(ref,bam_pileup_dict.get(ref))
 
     #get dictionary of {chr: {coord: coverage}} & {chr: {coord: ref_name}} from reference sequence names
-    chrs_pileup_dict, chrs_pileup_references_dict = coord_coverage_to_chrs(bam_pileup_dict)
+    chrs_pileup_dict, chrs_pileup_references_dict, conflicting_references_dict = coord_coverage_to_chrs(bam_pileup_dict)
     #print(chrs_pileup_dict)
 
     #prints to STDOUT

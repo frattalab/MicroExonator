@@ -145,7 +145,7 @@ rule bam_to_coverage_bedgraph:
         "Report/out.ambiguous.txt"
 
     output:
-        "Round2/{sample}.microexons.bedGraph"
+        "Round2/coverage_bedgraphs/{sample}.microexons.bedGraph"
 
     params:
         lambda wildcards, input: ','.join(input[2:])
