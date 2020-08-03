@@ -352,7 +352,7 @@ def coord_coverage_to_chrs(coord_pileup_dict):
     #2. how many tags have n conflicts
     conflict_counts = Counter(Counter([key[0] for key in conflicting_tags_dict.keys()]).values())
     for n_conflicts, n_regions in conflict_counts.items():
-        sys.stderr.write("{0} regions/sequence tags have {1} conflicting tag pairs".format(n_regions, n_conflicts))
+        sys.stderr.write("{0} regions/sequence tags have {1} conflicting tag pairs\n".format(n_regions, n_conflicts))
 
 
 
