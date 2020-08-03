@@ -9,7 +9,7 @@ rule ME_reads:
         "../envs/core.yaml"
     shell:
         "python2 src/round2_ME_reads_fastq.py {input} > {output}"
-        
+
 rule Get_Genome:
     input:
         config["Genome_fasta"]
@@ -93,14 +93,14 @@ rule write_ME_matches:
         "../envs/core_py3.yaml"
     shell:
         "python3 src/Get_ME_matches.py {input} > {output}"
-    
+
 
 rule Output:
     input:
         "Round2/TOTAL.ME_centric.txt",
         "Round2/TOTAL.filter1.ME_SJ_coverage",
         "Round2/TOTAL.ME_centric.ME_matches.txt"
-        
+
     params:
         wd = config["working_directory"],
         min_number_files_detected = config["min_number_files_detected"]
@@ -138,7 +138,7 @@ rule coverage_to_PSI:
         "Report/out_filtered_ME.cov.txt",
     params:
         config["min_reads_PSI"],
-        config["paired_samples"]    
+        config["paired_samples"]
     output:
         "Report/out_filtered_ME.PSI.txt"
     conda:
@@ -152,7 +152,7 @@ rule annotation_stats:
         config["Gene_anontation_bed12"],
         "Report/out.high_quality.txt",
     params:
-        30
+        config["min_number_files_detected"]
     output:
         "Report/stats/Microexons.not_consensus",
         "Report/stats/Microexons.annotation.stats"
