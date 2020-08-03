@@ -334,7 +334,7 @@ def coord_coverage_to_chrs(coord_pileup_dict):
                     chrs_coord_ref_dict[chr][coord] = ref_name
                 #Expect same genome coordinate from different reference sequence names to have exactly same number of reads covering its position - is that so? 29/07
                 elif coverage != chrs_cov_dict[chr][coord]:
-                    sys.stderr.write("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
+                    sys.stderr.write("conflicting_coverages\t{1}\t{0}\t{3}\t{2}\t{5}\t{4}\n".format(coord, chr, chrs_cov_dict[chr][coord], chrs_coord_ref_dict[chr][coord], coverage, ref_name))
                     #raise Exception("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
 
     return chrs_cov_dict, chrs_coord_ref_dict
