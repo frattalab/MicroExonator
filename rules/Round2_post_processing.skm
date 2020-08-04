@@ -138,17 +138,16 @@ rule bam_to_coverage_bedgraph:
     input:
         "Round2/{sample}.bam",
         "Round2/{sample}.bam.bai",
+        "Round2/{sample}.sam.pre_processed.filter1",
         "Report/out_filtered_ME.txt",
         "Report/out_low_scored_ME.txt",
         "Report/out_shorter_than_3_ME.txt",
-        "Report/out.high_quality.txt",
-        "Report/out.ambiguous.txt"
 
     output:
         "Round2/coverage_bedgraphs/{sample}.microexons.bedGraph"
 
     params:
-        lambda wildcards, input: ','.join(input[2:])
+        lambda wildcards, input: ','.join(input[3:])
 
     conda:
         "../envs/core_py3.yaml"
@@ -157,7 +156,7 @@ rule bam_to_coverage_bedgraph:
         "logs/coverage_profiles/{sample}.log"
 
     shell:
-        "python src/get_coverage_profiles.py {input[0]} {params} > {output} 2> {log}"
+        "python src/get_coverage_profiles.py {input[0]} {params} {input[2]} > {output} 2> {log}"
 
 
 rule coverage_to_PSI:

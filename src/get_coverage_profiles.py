@@ -64,6 +64,18 @@ def ref_name_add_brackets(string):
 
     return '|'.join([split_str[0], fixed_multi, split_str[2]])
 
+
+def filter_me_reads_list(round2_filter_path):
+    '''
+    Returns list of valid microexon reads produced by Round2_filter rule - only these reads will contribute to coverage in bedgraph
+    '''
+    #read ids are in 1st column of SAM file format/output from Round2_filter
+    with open(round2_filter_path) as infile:
+        reads = [line.split('\t')[0] for line in infile]
+
+    sys.stderr.write("{0}\n".format('\n'.join(reads)))
+    return reads
+
 #############----------------------
 # Main functions - loosely chronological order (check main for final order)
 #############----------------------
@@ -155,37 +167,24 @@ def get_mex_reference_names(microexon_dict,pysam_bam):
 
     return ref_seq_dict, sj_seq_mex_dict
 
-def initial_pileup(bam, seq_name_list):
+
+def initial_pileup(bam, seq_name_list, valid_reads_path):
     '''
     Calculate per nucleotide coverage for all reference sequence names in seq_name_list using pysam pileup
     Return nested dict of {Reference name: {position: coverage}}
     (first pass - returns values for bases with coverage only)
     '''
-    pileup_dict = {}
+    #valid read ids that do not have a primary alignment to the whole genome
+    valid_reads_list = filter_me_reads_list(valid_reads_path)
 
     #bam.references returns large list of reference sequence names
     #Try bundling reference_tags into generator expression, so not all sequence names are stored in memory
+    pileup_dict = {}
     for reference_tag in (ref for ref in seq_name_list):
+        # only want reads to count towards coverage if also found in valid_reads_list
+        reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_list)) for pileupcolumn in bam.pileup(reference_tag)}
 
-    #    if 'MULTI' in reference_tag:
-            # This means I removed '(' or ')' from the header of BAM file (see Round2.skm sam_to_bam)
-            # bam.references fetches references sequence names from @SQ SN:<name> lines in header (by looks of it...)
-            # I did not edit the Reference sequence names in column 3 of SAM/BAM alignment lines
-            # pileup would return empty values if don't add brackets back into sequence name for query
-
-    #        if '(' not in reference_tag and ')' not in reference_tag:
-                #add brackets back in
-    #            fixed_ref_tag = ref_name_add_brackets(reference_tag)
-    #            reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(fixed_ref_tag)}
-    #            pileup_dict[reference_tag] = reference_cov
-
-    #        else:
-                #proceed as normal
-    #            reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
-    #            pileup_dict[reference_tag] = reference_cov
-
-    #    else:
-        reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
+        #reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
         pileup_dict[reference_tag] = reference_cov
 
     return pileup_dict
@@ -277,6 +276,7 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
 
         # 4. Get genome coordinates of microexon given splice junction & sequence tuples
         mex_genome_coords_str = tuples_microexon_dict.get(sj_seq_tuple)
+
         #Again assume provided microexon coordinates follow BED12 convention - start is 0 based and end is 1-based
         mex_coord_start = int(mex_genome_coords_str.split('_')[-2]) + 1
         mex_coord_end = int(mex_genome_coords_str.split('_')[-1])
@@ -288,11 +288,10 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
         genome_coords5.extend(mex_genome_coords)
         genome_coords5.extend(genome_coords3)
 
-        #genome_cov_dict[ref_name] = genome_coords5
-
         #6. Map genome coordinates to coverage values in nested OrderedDict in pileup_dict for given reference name
         #Expect number of genome coordinates to match number of keys (coordinates) in OrderedDict
         coverage_dict = pileup_dict.get(ref_name)
+
         if len(genome_coords5) != len(coverage_dict.values()):
             raise Exception("Number of generated genome coordinates does not match the number of coordinates computed for reference region. Double check how generating genome coordinates")
 
@@ -308,6 +307,53 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
 
     return genome_cov_dict
 
+'''
+def resolve_coverage_conflicts(chrs_coord_ref_dict, conflicting_tags_dict, threshold=0.5):
+    #
+    #chrs_coord_ref_dict = {chr :{coord: reference_name}}
+    #conflicting_tags_dict = {(tag1, tag2): {coord: (tag1_cov, tag2_cov)}} where tag already present in chrs_coord_tag_dict
+    #Some reference tags share common genomic coordinates but differ in read coverage at these positions
+    #Function selects reference tag in which majority (threshold) of positions have higher coverage than overlapping tag
+    #Returns dictionary of {<current_tag_name>: <tag to replace>}
+    #
+
+    # 1. Reference tag (1st position in tuple key) could have conflicts with multiple sequence tags (i.e. multiple tuples have same tuple[0] tag)
+    # Generate list of tuples of [(tag1,tag2),(tag1,tag3), (tag4,tag6)]} from keys in conflicting_tags_dict
+    #tag_conflict_pairs_list = [conflict_tup]
+
+    #for conflict_tuple in conflicting_tags_dict.keys():
+    #    if conflict_tuple[0] not in tag_conflict_pairs_dict:
+    #         tag_conflict_pairs_dict[conflict_tuple[0]] = [conflict_tuple]
+    #    else:
+    #        tag_conflict_pairs_dict[conflict_tuple[0]].append(conflict_tuple)
+
+    #2. Iterate over each combo of conflicting tags in tag_conflict_pairs_dict to pick tag with consistently highest coverage over conflicting coordinates
+    # In this way select the tag/microexon and host transcripts that is best supported by reads
+    # generate dict of {<current_tag>: <tag_to_replace>} where current_tag is name of tag present in conflicting_tags_dict
+    tags_to_replace_dict = {}
+
+    for conflict_tuple, coverage_dict in conflicting_tags_dict.items():
+        if conflict_tuple[0] not in tags_to_replace_dict:
+            # as it stands tuple[0] (existing tag) does 'not need replacing' or is not worse supported than another conflicting tag
+            #how many positions is coverage for coordinates in existing reference tag >= coverage in conflicting reference tag?
+            n_pos_higher = sum(1 for coverage_tuple in coverage_dict.values() if coverage_tuple[0] >= coverage_tuple[1])
+
+            if n_pos_higher / len(coverage_dict.keys()) >= threshold:
+                sys.stderr.write("{0} selected over {1} to represent conflicting coordinates as it has greater coverage over at least {2} conflicting positions\n".format(conflict_tuple[0], conflict_tuple[1], threshold))
+                continue
+            else:
+                #conflicting tag not present in existing coverage dict has consistently higher coverage than existing tag - want to replace
+                tags_to_replace_dict[conflict_tuple[0]] = conflict_tuple[1]
+        else:
+            #Need to compare to highest coverage tag for position NOT conflict_tuple[0] (already proved to be more poorly supported than another tag)
+            current_tag = tags_to_replace_dict.get(conflict_tuple[0])
+            current_tag_covs_dict = conflicting_tags_dict.get(tuple([conflict_tuple[0], current_tag]))
+
+            #how many coordinates are shared between the comparison reference tags?
+            compare_tag_coords = [tup[1] for tup in coverage_dict.values()]
+            shared_coords = [coord for coord in current_tag_covs_dict.keys() if coord in compare_tag_coords]
+'''
+
 
 def coord_coverage_to_chrs(coord_pileup_dict):
     '''
@@ -318,48 +364,55 @@ def coord_coverage_to_chrs(coord_pileup_dict):
     '''
 
     chrs_cov_dict = {} # {chr: {coord: coverage}}
-    chrs_coord_tag_dict = {} # {chr: {coord: reference_name}}
-    conflicting_tags_dict = {} # {(tag1, tag2): {coord: (tag1_cov, tag2_cov)}} where reference_name already present in chrs_coord_tag_dict
+    chrs_coord_tag_dict = {} # {chr: {coord: [reference_name]}}
+    #conflicting_tags_dict = {} # {(tag1, tag2): {coord: (tag1_cov, tag2_cov)}} where reference_name already present in chrs_coord_tag_dict
 
     for ref_name, coverage_dict in coord_pileup_dict.items():
         chr = ref_name.split(':')[0]
 
         if chr not in chrs_cov_dict:
             chrs_cov_dict[chr] = dict(coverage_dict) #coverage_dict is OrderedDict - want a normal one
-            chrs_coord_tag_dict[chr] = {coord: ref_name for coord in coverage_dict.keys()}
+            chrs_coord_tag_dict[chr] = {coord: [ref_name] for coord in coverage_dict.keys()}
             continue
         else:
             for coord, coverage in coverage_dict.items():
                 if coord not in chrs_cov_dict.get(chr):
                     chrs_cov_dict[chr][coord] = coverage
-                    chrs_coord_tag_dict[chr][coord] = ref_name
+                    chrs_coord_tag_dict[chr][coord] = [ref_name]
 
-                #Expect same genome coordinate from different reference sequence names to have exactly same number of reads covering its position - is that so? 29/07
-                elif coverage != chrs_cov_dict[chr][coord]:
-                    #tags cover same genomic coordinates but have conflicting read coverage - want to store in conflicting_tags_dict for future resolving
+                else:
+                    #tags cover same genomic coordinates but have different read coverages
+                    #As valid reads correspond to primary alignments to reference tag (and don't align to genome) - know they are distinct reads
+                    #Can sum coverage at that position
+                    new_coverage = chrs_cov_dict[chr][coord] + coverage
+                    chrs_cov_dict[chr][coord] = new_coverage
+                    chrs_coord_tag_dict[chr][coord].append(ref_name)
 
-                    if tuple([chrs_coord_tag_dict[chr][coord], ref_name]) not in conflicting_tags_dict:
-                        conflicting_tags_dict[tuple([chrs_coord_tag_dict[chr][coord], ref_name])] = {coord: tuple([chrs_cov_dict[chr][coord], coverage])}
-                    else:
-                        conflicting_tags_dict[tuple([chrs_coord_tag_dict[chr][coord], ref_name])][coord] = tuple([chrs_cov_dict[chr][coord], coverage])
+
+                    #if tuple([chrs_coord_tag_dict[chr][coord], ref_name]) not in conflicting_tags_dict:
+                    #    conflicting_tags_dict[tuple([chrs_coord_tag_dict[chr][coord], ref_name])] = {coord: tuple([chrs_cov_dict[chr][coord], coverage])}
+                    #else:
+                    #    conflicting_tags_dict[tuple([chrs_coord_tag_dict[chr][coord], ref_name])][coord] = tuple([chrs_cov_dict[chr][coord], coverage])
 
 
 
     #conflicting_tags_dict - how many conflicting regions?
-    sys.stderr.write("{0} regions covered by multiple reference sequence tags have conflicting coverages\n".format(len(set([key[0] for key in conflicting_tags_dict.keys()]))))
+    #sys.stderr.write("{0} regions covered by multiple reference sequence tags have conflicting coverages\n".format(len(set([key[0] for key in conflicting_tags_dict.keys()]))))
     #For all regions, how many regions have conflicts between multiple pairs of reference tags?
     #1. how many times/conflicts does each tag1 appear in conflicting
     #2. how many tags have n conflicts
-    conflict_counts = Counter(Counter([key[0] for key in conflicting_tags_dict.keys()]).values())
-    for n_conflicts, n_regions in conflict_counts.items():
-        sys.stderr.write("{0} regions/sequence tags have {1} conflicting tag pairs\n".format(n_regions, n_conflicts))
+    #conflict_counts = Counter(Counter([key[0] for key in conflicting_tags_dict.keys()]).values())
+    #for n_conflicts, n_regions in conflict_counts.items():
+    #    sys.stderr.write("{0} regions/sequence tags have {1} conflicting tag pairs\n".format(n_regions, n_conflicts))
 
 
 
                     #sys.stderr.write("conflicting_coverages\t{1}\t{0}\t{3}\t{2}\t{5}\t{4}\n".format(coord, chr, chrs_cov_dict[chr][coord], chrs_coord_ref_dict[chr][coord], coverage, ref_name))
                     #raise Exception("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
 
-    return chrs_cov_dict, chrs_coord_tag_dict, conflicting_tags_dict
+    return chrs_cov_dict, chrs_coord_tag_dict
+
+
 
 
 def chrs_coverage_to_bed(chrs_cov_dict,header="type=bedGraph"):
@@ -414,6 +467,7 @@ if __name__ == '__main__':
     #bamfile = "/home/sam/cluster/sbs_projects/MicroExonator_fork/MicroExonator/Round2/Ward_CTL_1.bam"
     bamfile = sys.argv[1]
     results_csvs = sys.argv[2]
+    processed_reads_path = sys.argv[3]
 
     #results csvs are all microexon results tables (under Report/), passed to script as comma-separated string
     results_csvs = results_csvs.split(',')
@@ -438,7 +492,7 @@ if __name__ == '__main__':
     #sj_print_dict = {key: val for key, val in sj_seq_microexon_dict.items() if key in print_tuple_list}
 
 
-    bam_pileup_dict = initial_pileup(bamfile, microexon_ref_seq_names.values())
+    bam_pileup_dict = initial_pileup(bamfile, microexon_ref_seq_names.values(), processed_reads_path)
     bamfile.close()
 
     #for ref in print_list:
@@ -460,7 +514,7 @@ if __name__ == '__main__':
     #    print(ref,bam_pileup_dict.get(ref))
 
     #get dictionary of {chr: {coord: coverage}} & {chr: {coord: ref_name}} from reference sequence names
-    chrs_pileup_dict, chrs_pileup_references_dict, conflicting_references_dict = coord_coverage_to_chrs(bam_pileup_dict)
+    chrs_pileup_dict, chrs_pileup_references_dict = coord_coverage_to_chrs(bam_pileup_dict)
     #print(chrs_pileup_dict)
 
     #prints to STDOUT
