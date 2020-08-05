@@ -22,7 +22,7 @@ import csv
 import sys
 import pysam
 import os
-from collections import OrderedDict, Counter
+from collections import OrderedDict#, Counter
 
 
 ######-------------------------
@@ -65,16 +65,19 @@ def ref_name_add_brackets(string):
     return '|'.join([split_str[0], fixed_multi, split_str[2]])
 
 
-def filter_me_reads_list(round2_filter_path):
+def valid_reads_generator(round2_filter_path):
     '''
-    Returns list of valid microexon reads produced by Round2_filter rule - only these reads will contribute to coverage in bedgraph
+    Returns generator object of valid microexon reads produced by Round2_filter rule - only these reads will contribute to coverage in bedgraph
     '''
     #read ids are in 1st column of SAM file format/output from Round2_filter
     with open(round2_filter_path) as infile:
-        reads = [line.split('\t')[0] for line in infile]
+        for line in infile:
+            read = line.split('\t')[0]
+            yield read
+        #reads = [line.split('\t')[0] for line in infile]
 
-    sys.stderr.write("{0}\n".format('\n'.join(reads)))
-    return reads
+    #sys.stderr.write("{0}\n".format('\n'.join(reads)))
+    #return reads
 
 #############----------------------
 # Main functions - loosely chronological order (check main for final order)
@@ -175,14 +178,14 @@ def initial_pileup(bam, seq_name_list, valid_reads_path):
     (first pass - returns values for bases with coverage only)
     '''
     #valid read ids that do not have a primary alignment to the whole genome
-    valid_reads_list = filter_me_reads_list(valid_reads_path)
+    #valid_reads_list = filter_me_reads_list(valid_reads_path)
 
     #bam.references returns large list of reference sequence names
     #Try bundling reference_tags into generator expression, so not all sequence names are stored in memory
     pileup_dict = {}
     for reference_tag in (ref for ref in seq_name_list):
-        # only want reads to count towards coverage if also found in valid_reads_list
-        reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_list)) for pileupcolumn in bam.pileup(reference_tag)}
+        # only want reads to count towards coverage if also found in valid_reads_file (generator object that reads through lines in Round2_filter output file)
+        reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_generator(valid_reads_path))) for pileupcolumn in bam.pileup(reference_tag)}
 
         #reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
         pileup_dict[reference_tag] = reference_cov
