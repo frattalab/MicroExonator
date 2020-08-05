@@ -23,7 +23,7 @@ import sys
 import pysam
 import os
 from collections import OrderedDict#, Counter
-
+import time
 
 ######-------------------------
 # Helper functions for main functions contained within this block
@@ -87,6 +87,7 @@ def get_valid_reads_dict(round2_filter_path):
     (use set as faster than list when interested in containment)
     https://stackoverflow.com/questions/2831212/python-sets-vs-lists
     '''
+    start = time.time()
     valid_reads_dict = {}
 
     #read name in first column (index 0), reference name third column (index 2)
@@ -97,7 +98,12 @@ def get_valid_reads_dict(round2_filter_path):
             else:
                 valid_reads_dict[line.split('\t')[2]].add(line.split('\t')[0]) #add read to set for given reference sequence
 
-    sys.stderr.write(valid_reads_dict)
+    for ref, valid_set in valid_reads_dict.items():
+        sys.stderr.write("{0}\t{1}\tn_valid_reads={2}\n".format(ref, ','.join(valid_set), str(len(valid_set))))
+
+    finish = time.time()
+    sys.stderr.write("Function to get a dictionary of {reference_name: set(valid_read1, valid_read2)} took {0} seconds\n".format(str(finish - start)))
+
     return valid_reads_dict
 #############----------------------
 # Main functions - loosely chronological order (check main for final order)
@@ -197,6 +203,7 @@ def initial_pileup(bam, seq_name_list, valid_reads_path):
     Return nested dict of {Reference name: {position: coverage}}
     (first pass - returns values for bases with coverage only)
     '''
+    start = time.time()
     #valid read ids that do not have a primary alignment to the whole genome stored as {ref_name: set(valid_read1, valid_read2)}
     valid_reads_dict = get_valid_reads_dict(valid_reads_path)
 
@@ -213,6 +220,9 @@ def initial_pileup(bam, seq_name_list, valid_reads_path):
         #reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
         pileup_dict[reference_tag] = reference_cov
 
+    finish = time.time()
+    sys.stderr.write("Function to perform pileup and get dictionary of {reference_name: {position: valid_reads_coverage}} took {0} seconds\n".format(str(finish - start)))
+
     return pileup_dict
 
 def fill_pileup_dict(pileup_dict):
@@ -221,6 +231,7 @@ def fill_pileup_dict(pileup_dict):
     pysam.pileup returns 0-based coordinates - this dictionary preservess this convention
     OrderedDict stores keys in ascending order (i.e. position 1 is first in dict and represented by key 0 etc.)
     '''
+    start = time.time()
 
     def seq_range_from_tag(string):
         '''
@@ -268,6 +279,10 @@ def fill_pileup_dict(pileup_dict):
         # add reference sequence name and completed coverage dict to complete dictionary to return at end of function
         complete_pileup_dict[reference_tag] = complete_cov_dict
 
+
+    finish = time.time()
+    sys.stderr.write("Function to fill pileup dict of {reference_name: {position: valid_reads_coverage}} for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
+
     return complete_pileup_dict
 
 def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microexon_dict):
@@ -278,6 +293,8 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
     sj_seq_tuple and microexon_coords ('chrY:5501255+5737271', 'CTTTCATACCTGGACTAAAGAAAG'): 'chrY_+_5581774_5581798'
     Assumptions: coordinates follow BED conventions
     '''
+    start = time.time()
+
     genome_cov_dict = {}
 
     for sj_seq_tuple, ref_name in tuples_reference_dict.items():
@@ -330,6 +347,9 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
 
             #ref_name: coords_cov_dict
             genome_cov_dict[ref_name] = coords_cov_dict
+
+    finish = time.time()
+    sys.stderr.write("Function to convert keys of nested pileup dict to {reference_name: {genome_coord: valid_reads_coverage}} for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
 
     return genome_cov_dict
 
@@ -388,6 +408,7 @@ def coord_coverage_to_chrs(coord_pileup_dict):
     returned as tuple of coverage dictionaries (coverage then reference name)
     e.g. reference tag chrY:5501255+5737271|ENST00000400457.3|100_CTTTCATACCTGGACTAAAGAAAG_100
     '''
+    start = time.time()
 
     chrs_cov_dict = {} # {chr: {coord: coverage}}
     chrs_coord_tag_dict = {} # {chr: {coord: [reference_name]}}
@@ -436,6 +457,9 @@ def coord_coverage_to_chrs(coord_pileup_dict):
                     #sys.stderr.write("conflicting_coverages\t{1}\t{0}\t{3}\t{2}\t{5}\t{4}\n".format(coord, chr, chrs_cov_dict[chr][coord], chrs_coord_ref_dict[chr][coord], coverage, ref_name))
                     #raise Exception("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
 
+    finish = time.time()
+    sys.stderr.write("Function to convert pileup dict to genome coverage dict of {chr: {genome_coord: valid_reads_coverage}} for all reference tags took {0} seconds\n".format(str(finish - start)))
+
     return chrs_cov_dict, chrs_coord_tag_dict
 
 
@@ -449,6 +473,7 @@ def chrs_coverage_to_bed(chrs_cov_dict,header="type=bedGraph"):
     chr1..chr<last> then named chrs in alphabetical order
     Takes dict of {chr: {coordinate: coverage} }, where coordinate key represents value of corresponding genome coordinate
     '''
+    start = time.time()
 
     numbered_chrs = []
     lettered_chrs = []
@@ -478,6 +503,8 @@ def chrs_coverage_to_bed(chrs_cov_dict,header="type=bedGraph"):
             #BED are half open - so for coverage to represent actual coordinate need coord to be end (and start is coord -1)
             print('\t'.join(['chr'+str(chr), str(coord - 1), str(coord), str(cov)]))
 
+    finish = time.time()
+    sys.stderr.write("Function to sort genome coverage dict by chromosome and print to stdout in bed format took {0} seconds\n".format(str(finish - start)))
 
 
     #for chr, coverage_dict in sorted(chrs_cov_dict.items()):
