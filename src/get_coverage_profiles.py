@@ -79,6 +79,26 @@ def valid_reads_generator(round2_filter_path):
     #sys.stderr.write("{0}\n".format('\n'.join(reads)))
     #return reads
 
+def get_valid_reads_dict(round2_filter_path):
+    '''
+    Return dictionary of {reference_name: set(valid_read1,valid_read2)} from output of Round2_filter rule
+    i.e. only contains microexon reads that do not have a primary alignment somewhere in the genome
+    When performing pileup for each microexon tag, reads only contribute to coverage if contained in corresponding set
+    (use set as faster than list when interested in containment)
+    https://stackoverflow.com/questions/2831212/python-sets-vs-lists
+    '''
+    valid_reads_dict = {}
+
+    #read name in first column (index 0), reference name third column (index 2)
+    with open(round2_filter_path) as infile:
+        for line in infile:
+            if line.split('\t')[2] not in valid_reads_dict:
+                valid_reads_dict[line.split('\t')[2]] = set(line.split('\t')[0])
+            else:
+                valid_reads_dict[line.split('\t')[2]].add(line.split('\t')[0]) #add read to set for given reference sequence
+
+    sys.stderr.write(valid_reads_dict)
+    return valid_reads_dict
 #############----------------------
 # Main functions - loosely chronological order (check main for final order)
 #############----------------------
@@ -177,15 +197,18 @@ def initial_pileup(bam, seq_name_list, valid_reads_path):
     Return nested dict of {Reference name: {position: coverage}}
     (first pass - returns values for bases with coverage only)
     '''
-    #valid read ids that do not have a primary alignment to the whole genome
-    #valid_reads_list = filter_me_reads_list(valid_reads_path)
+    #valid read ids that do not have a primary alignment to the whole genome stored as {ref_name: set(valid_read1, valid_read2)}
+    valid_reads_dict = get_valid_reads_dict(valid_reads_path)
 
     #bam.references returns large list of reference sequence names
     #Try bundling reference_tags into generator expression, so not all sequence names are stored in memory
     pileup_dict = {}
     for reference_tag in (ref for ref in seq_name_list):
-        # only want reads to count towards coverage if also found in valid_reads_file (generator object that reads through lines in Round2_filter output file)
-        reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_generator(valid_reads_path))) for pileupcolumn in bam.pileup(reference_tag)}
+        # only want reads to count towards coverage if also found in valid_reads_dict for given reference name (assign so don't look up dict multiple times)
+        valid_reads_set = valid_reads_dict.get(reference_tag)
+
+        # Hoping that comparing to valid reads for same reference tag will be quicker than iterating over generator of all reads
+        reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_set)) for pileupcolumn in bam.pileup(reference_tag)}
 
         #reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
         pileup_dict[reference_tag] = reference_cov
