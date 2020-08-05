@@ -94,15 +94,15 @@ def get_valid_reads_dict(round2_filter_path):
     with open(round2_filter_path) as infile:
         for line in infile:
             if line.split('\t')[2] not in valid_reads_dict:
-                valid_reads_dict[line.split('\t')[2]] = set(line.split('\t')[0])
+                valid_reads_dict[line.split('\t')[2]] = set([line.split('\t')[0]]) #string in list so set doesn't split the first string
             else:
                 valid_reads_dict[line.split('\t')[2]].add(line.split('\t')[0]) #add read to set for given reference sequence
 
     for ref, valid_set in valid_reads_dict.items():
-        sys.stderr.write("{0}\t{1}\tn_valid_reads={2}\n".format(ref, ','.join(valid_set), str(len(valid_set))))
+        sys.stderr.write("{0}\t{1}\tn_valid_reads={2}\n".format(ref, ' '.join(valid_set), str(len(valid_set))))
 
     finish = time.time()
-    sys.stderr.write("Function to get a dictionary of {reference_name: set(valid_read1, valid_read2)} took {0} seconds\n".format(str(finish - start)))
+    sys.stderr.write("Function to get a dictionary of reference_name: set valid_read1, valid_read2 took {0} seconds\n".format(str(finish - start)))
 
     return valid_reads_dict
 #############----------------------
@@ -221,7 +221,7 @@ def initial_pileup(bam, seq_name_list, valid_reads_path):
         pileup_dict[reference_tag] = reference_cov
 
     finish = time.time()
-    sys.stderr.write("Function to perform pileup and get dictionary of {reference_name: {position: valid_reads_coverage}} took {0} seconds\n".format(str(finish - start)))
+    sys.stderr.write("Function to perform pileup and get nested dictionary of reference_name: position: valid_reads_coverage took {0} seconds\n".format(str(finish - start)))
 
     return pileup_dict
 
@@ -281,7 +281,7 @@ def fill_pileup_dict(pileup_dict):
 
 
     finish = time.time()
-    sys.stderr.write("Function to fill pileup dict of {reference_name: {position: valid_reads_coverage}} for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
+    sys.stderr.write("Function to fill nested pileup dict of reference_name: position: valid_reads_coverage for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
 
     return complete_pileup_dict
 
@@ -349,7 +349,7 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
             genome_cov_dict[ref_name] = coords_cov_dict
 
     finish = time.time()
-    sys.stderr.write("Function to convert keys of nested pileup dict to {reference_name: {genome_coord: valid_reads_coverage}} for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
+    sys.stderr.write("Function to convert keys of nested pileup dict to reference_name: genome_coord: valid_reads_coverage for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
 
     return genome_cov_dict
 
@@ -458,7 +458,7 @@ def coord_coverage_to_chrs(coord_pileup_dict):
                     #raise Exception("coordinate {0} on {1} has different read coverages across reference tags {2} & {3}".format(coord, chr, chrs_coord_ref_dict[chr][coord], ref_name))
 
     finish = time.time()
-    sys.stderr.write("Function to convert pileup dict to genome coverage dict of {chr: {genome_coord: valid_reads_coverage}} for all reference tags took {0} seconds\n".format(str(finish - start)))
+    sys.stderr.write("Function to convert pileup dict to nested genome coverage dict of chr: genome_coord: valid_reads_coverage for all reference tags took {0} seconds\n".format(str(finish - start)))
 
     return chrs_cov_dict, chrs_coord_tag_dict
 
