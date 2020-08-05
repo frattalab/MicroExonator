@@ -98,8 +98,8 @@ def get_valid_reads_dict(round2_filter_path):
             else:
                 valid_reads_dict[line.split('\t')[2]].add(line.split('\t')[0]) #add read to set for given reference sequence
 
-    for ref, valid_set in valid_reads_dict.items():
-        sys.stderr.write("{0}\t{1}\tn_valid_reads={2}\n".format(ref, ' '.join(valid_set), str(len(valid_set))))
+    #for ref, valid_set in valid_reads_dict.items():
+        #sys.stderr.write("{0}\t{1}\tn_valid_reads={2}\n".format(ref, ' '.join(valid_set), str(len(valid_set))))
 
     finish = time.time()
     sys.stderr.write("Function to get a dictionary of reference_name: set valid_read1, valid_read2 took {0} seconds\n".format(str(finish - start)))
@@ -213,12 +213,17 @@ def initial_pileup(bam, seq_name_list, valid_reads_path):
     for reference_tag in (ref for ref in seq_name_list):
         # only want reads to count towards coverage if also found in valid_reads_dict for given reference name (assign so don't look up dict multiple times)
         valid_reads_set = valid_reads_dict.get(reference_tag)
+        if valid_reads_set is None:
+            sys.stderr.write("{0} does not contain any valid microexon reads in {1} - skipping\n".format(reference_tag, valid_reads_path))
+            continue
 
-        # Hoping that comparing to valid reads for same reference tag will be quicker than iterating over generator of all reads
-        reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_set)) for pileupcolumn in bam.pileup(reference_tag)}
+        else: #should have a set object - can perform pileup
 
-        #reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
-        pileup_dict[reference_tag] = reference_cov
+            # Hoping that comparing to valid reads for same reference tag will be quicker than iterating over generator of all reads
+            reference_cov = {pileupcolumn.pos: (sum(1 for read in pileupcolumn.get_query_names() if read in valid_reads_set)) for pileupcolumn in bam.pileup(reference_tag)}
+
+            #reference_cov = {pileupcol.pos: pileupcol.n for pileupcol in bam.pileup(reference_tag)}
+            pileup_dict[reference_tag] = reference_cov
 
     finish = time.time()
     sys.stderr.write("Function to perform pileup and get nested dictionary of reference_name: position: valid_reads_coverage took {0} seconds\n".format(str(finish - start)))
