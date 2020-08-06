@@ -340,8 +340,11 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
         #Expect number of genome coordinates to match number of keys (coordinates) in OrderedDict
         coverage_dict = pileup_dict.get(ref_name)
 
-        if len(genome_coords5) != len(coverage_dict.values()):
-            raise Exception("Number of generated genome coordinates does not match the number of coordinates computed for reference region. Double check how generating genome coordinates")
+        #Some reference tags are skipped as have no valid reads - need to skip following steps if the case
+        if coverage_dict is None:
+            continue
+        elif len(genome_coords5) != len(coverage_dict.values()):
+                raise Exception("Number of generated genome coordinates does not match the number of coordinates computed for reference region. Double check how generating genome coordinates")
 
         else:
             coords_cov_dict = OrderedDict()
@@ -350,8 +353,8 @@ def pileup_to_genome_coordinates(pileup_dict,tuples_reference_dict,tuples_microe
                 #coordinate: coverage
                 coords_cov_dict[genome_coords5[idx]] = coverage_dict.get(key)
 
-            #ref_name: coords_cov_dict
-            genome_cov_dict[ref_name] = coords_cov_dict
+                #ref_name: coords_cov_dict
+                genome_cov_dict[ref_name] = coords_cov_dict
 
     finish = time.time()
     sys.stderr.write("Function to convert keys of nested pileup dict to reference_name: genome_coord: valid_reads_coverage for all positions in each reference tag took {0} seconds\n".format(str(finish - start)))
