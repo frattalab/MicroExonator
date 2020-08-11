@@ -15,8 +15,8 @@ def str2bool(v):
 
 rule quant:
     input:
-        "Report/stats/Microexons.not_consensus",
-        "Report/stats/Microexons.annotation.stats"
+        config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
+        config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
         #"Report/out_filtered_ME.PSI.txt",
         #"Report/stats/Microexons.not_consensus",
         #"Report/stats/Microexons.annotation.stats"
@@ -29,7 +29,7 @@ rule quant:
 
 rule discovery:
     input:
-        "Round2/ME_canonical_SJ_tags.de_novo.fa"
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.de_novo.fa"
 
 
 #### MicroExonator ####
@@ -58,8 +58,8 @@ include : "rules/Get_data.skm"
 
 rule bamfiles:
     input:
-        expand("Whippet/BAM/{samples}.bam", samples=DATA),
-        expand("Whippet/BAM/{samples}.bam.bai", samples=DATA)
+        expand("{outdir}Whippet/BAM/{samples}.bam", outdir = config["master_output_directory"], samples=DATA),
+        expand("{outdir}Whippet/BAM/{samples}.bam.bai", outdir = config["master_output_directory"], samples=DATA)
 
 
 if ("downstream_only" in config)==False:
@@ -112,21 +112,21 @@ import os
 round1_incomplete = []
 
 for file in DATA:
-    if os.path.isfile('./Round1/' + file  + '.sam.row_ME.filter1')!=True:
+    if os.path.isfile(config["master_output_directory"] + 'Round1/' + file  + '.sam.row_ME.filter1')!=True:
         round1_incomplete.append(file)
 
 rule rerun_incomplete_round1:
     input:
-        expand("Round1/{sample}.sam.row_ME.filter1", sample=round1_incomplete )
+        expand("{outdir}Round1/{sample}.sam.row_ME.filter1", outdir = config["master_output_directory"], sample=round1_incomplete )
 
 
 
 round2_incomplete = []
 
 for file in DATA:
-    if os.path.isfile('./Round2/' + file  + '.sam.pre_processed.filter1.ME_SJ_coverage')!=True:
+    if os.path.isfile(config["master_output_directory"] + 'Round2/' + file  + '.sam.pre_processed.filter1.ME_SJ_coverage')!=True:
         round2_incomplete.append(file)
 
 rule rerun_incomplete_round2:
     input:
-        expand("Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage", sample=round2_incomplete )
+        expand("{outdir}Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage", outdir = config["master_output_directory"], sample=round2_incomplete )

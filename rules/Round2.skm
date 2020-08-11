@@ -1,17 +1,17 @@
 rule Get_ME_from_annotation:
     input:
         config["Genome_fasta"],
-        "Round1/TOTAL/TOTAL.sam.row_ME.filter1.ME_centric",
+        config["master_output_directory"] + "Round1/TOTAL/TOTAL.sam.row_ME.filter1.ME_centric",
         config["Gene_anontation_bed12"],
-        "data/GT_AG_U2_5.pwm",
-        "data/GT_AG_U2_3.pwm",
+        config["master_output_directory"] + "data/GT_AG_U2_5.pwm",
+        config["master_output_directory"] + "data/GT_AG_U2_3.pwm",
         config["ME_DB"]
     params:
         bw = config["conservation_bigwig"],
         ME_len = config["ME_len"]
     output:
-        "data/ME_canonical_SJ_tags.DB.fa",
-        "data/DB.ME_centric"
+        config["master_output_directory"] + "data/ME_canonical_SJ_tags.DB.fa",
+        config["master_output_directory"] + "data/DB.ME_centric"
     conda:
         "../envs/pybedtools.yaml"
     shell:
@@ -20,10 +20,10 @@ rule Get_ME_from_annotation:
 
 rule merge_tags:
     input:
-        "Round2/ME_canonical_SJ_tags.de_novo.fa",
-        "data/ME_canonical_SJ_tags.DB.fa"
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.de_novo.fa",
+        config["master_output_directory"] + "data/ME_canonical_SJ_tags.DB.fa"
     output:
-        "Round2/ME_canonical_SJ_tags.fa"
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.fa"
     conda:
         "../envs/core.yaml"
     shell:
@@ -32,10 +32,10 @@ rule merge_tags:
 
 rule merge_ME_centric:
     input:
-        "Round1/TOTAL/TOTAL.sam.row_ME.filter1.ME_centric",
-        "data/DB.ME_centric"
+        config["master_output_directory"] + "Round1/TOTAL/TOTAL.sam.row_ME.filter1.ME_centric",
+        config["master_output_directory"] + "data/DB.ME_centric"
     output:
-        "Round2/TOTAL.ME_centric.txt"
+        config["master_output_directory"] + "Round2/TOTAL.ME_centric.txt"
     conda:
         "../envs/core.yaml"
     shell:
@@ -44,9 +44,9 @@ rule merge_ME_centric:
 
 rule Round2_bowtie_tags_index:
     input:
-        "Round2/ME_canonical_SJ_tags.fa"
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.fa"
     output:
-        "Round2/ME_canonical_SJ_tags.fa.1.ebwt"
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.fa.1.ebwt"
     conda:
         "../envs/core.yaml"
     shell:
@@ -54,14 +54,14 @@ rule Round2_bowtie_tags_index:
 
 rule download_fastq2:
     input:
-        "download/{sample}.download.sh",
-        "Round2/TOTAL.ME_centric.txt"
+        config["master_output_directory"] + "download/{sample}.download.sh",
+        config["master_output_directory"] + "Round2/TOTAL.ME_centric.txt"
     params:
-        "FASTQ/{sample}.fastq"
+        config["master_output_directory"] + "FASTQ/{sample}.fastq"
     output:
-        temp("FASTQ/round2/{sample}.fastq")
+        temp(config["master_output_directory"] + "FASTQ/round2/{sample}.fastq")
     priority: -10
-    resources: 
+    resources:
         get_data = 1
     conda:
         "../envs/core.yaml"
@@ -71,17 +71,17 @@ rule download_fastq2:
 
 def hard_drive_behavior(fastq):
     if config["Optimize_hard_drive"]=="T":
-        return(  "FASTQ/round2/" + fastq + ".fastq")
+        return(  config["master_output_directory"] + "FASTQ/round2/" + fastq + ".fastq")
     elif config["Optimize_hard_drive"]=="F":
-        return("FASTQ/" + fastq + ".fastq")
+        return(config["master_output_directory"] + "FASTQ/" + fastq + ".fastq")
 
 rule Round2_bowtie_to_tags:
     input:
-        "Round2/ME_canonical_SJ_tags.fa",
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.fa",
         hard_drive_behavior("{sample}"),
-        "Round2/ME_canonical_SJ_tags.fa.1.ebwt"
+        config["master_output_directory"] + "Round2/ME_canonical_SJ_tags.fa.1.ebwt"
     output:
-        temp("Round2/{sample}.sam")
+        temp(config["master_output_directory"] + "Round2/{sample}.sam")
     threads: 5
     priority: 100
     conda:
@@ -92,9 +92,9 @@ rule Round2_bowtie_to_tags:
 
 rule Round2_alingment_pre_processing:
     input:
-        "Round2/{sample}.sam"
+        config["master_output_directory"] + "Round2/{sample}.sam"
     output:
-        temp("Round2/{sample}.sam.pre_processed")
+        temp(config["master_output_directory"] + "Round2/{sample}.sam.pre_processed")
     priority: 100
     conda:
         "../envs/core.yaml"
