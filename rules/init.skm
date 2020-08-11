@@ -82,7 +82,7 @@ if os.path.isfile("./local_samples.tsv"):
                     download_file =  open(file_name, "w")
 
                     download_file.write("#!/bin/bash" + "\n")
-                    download_file.write("zcat " + row["path"] +  " > config["master_output_directory"] + FASTQ/" + row["sample"]  + ".fastq" + "\n")
+                    download_file.write("zcat " + row["path"] +  " > " + config["master_output_directory"] + "FASTQ/" + row["sample"]  + ".fastq" + "\n")
 
 
 
