@@ -15,8 +15,11 @@ def str2bool(v):
 
 rule quant:
     input:
-        config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
-        config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
+        config["master_output_directory"] + "Report/out.high_quality.annot_status.txt",
+        config["master_output_directory"] + "Report/out_low_scored_ME.annot_status.txt",
+        config["master_output_directory"] + "Report/out_shorter_than_3_ME.annot_status.txt"
+        #config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
+        #config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
         #"Report/out_filtered_ME.PSI.txt",
         #"Report/stats/Microexons.not_consensus",
         #"Report/stats/Microexons.annotation.stats"

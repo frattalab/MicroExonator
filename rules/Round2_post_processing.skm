@@ -146,17 +146,37 @@ rule coverage_to_PSI:
     shell:
         "python src/counts_to_PSI.py {input} {params} > {output}"
 
-
-rule annotation_stats:
+rule get_annotation_status_tbl:
     input:
-        config["Gene_anontation_bed12"],
+        config["master_output_directory"] + "data/ME_canonical_SJ_tags.DB.fa",
         config["master_output_directory"] + "Report/out.high_quality.txt",
-    params:
-        config["min_number_files_detected"]
+        config["master_output_directory"] + "Report/out_low_scored_ME.txt",
+        config["master_output_directory"] + "Report/out_shorter_than_3_ME.txt"
+
     output:
-        config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
-        config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
+        config["master_output_directory"] + "Report/out.high_quality.annot_status.txt",
+        config["master_output_directory"] + "Report/out_low_scored_ME.annot_status.txt",
+        config["master_output_directory"] + "Report/out_shorter_than_3_ME.annot_status.txt"
+
+    params:
+        lambda wildcards, input: ','.join(input[1:])
+
     conda:
         "../envs/core_py3.yaml"
+
     shell:
-        "python3 src/stats/discovery_stats.py {input} {params}"
+        "python src/classify_me_annotation_status.py {input[0]} {params}"
+
+#rule annotation_stats:
+#    input:
+#        config["Gene_anontation_bed12"],
+#        config["master_output_directory"] + "Report/out.high_quality.txt",
+#    params:
+#        config["min_number_files_detected"]
+#    output:
+#        config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
+        config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
+#    conda:
+#        "../envs/core_py3.yaml"
+#    shell:
+#        "python3 src/stats/discovery_stats.py {input} {params}"
