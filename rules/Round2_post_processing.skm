@@ -175,7 +175,7 @@ rule get_annotation_status_tbl:
 #        config["min_number_files_detected"]
 #    output:
 #        config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
-        config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
+#        config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
 #    conda:
 #        "../envs/core_py3.yaml"
 #    shell:
