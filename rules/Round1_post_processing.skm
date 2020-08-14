@@ -18,11 +18,13 @@ rule hisat2_Genome_index:
         config["Genome_fasta"]
     output:
         config["master_output_directory"] + "data/Genome.1.ht2"
+    params:
+        idx_prefix = config["master_output_directory"] + "data/Genome"
     threads: 5
     conda:
         "../envs/core.yaml"
     shell:
-        "hisat2-build {input} data/Genome"
+        "hisat2-build {input} {params.idx_prefix}"
 
 
 rule hisat2_to_Genome:
@@ -31,11 +33,13 @@ rule hisat2_to_Genome:
         config["master_output_directory"] + "data/Genome.1.ht2"
     output:
         temp(config["master_output_directory"] + "Round1/{sample}.sam.row_ME.Genome.Aligned.out.sam")
+    params:
+        idx_prefix = config["master_output_directory"] + "data/Genome"
     threads: 1
     conda:
         "../envs/core.yaml"
     shell:
-        "hisat2 -x data/Genome -U {input[0]} > {output}"
+        "hisat2 -x {params.idx_prefix} -U {input[0]} > {output}"
 
 
 rule Round1_filter:
