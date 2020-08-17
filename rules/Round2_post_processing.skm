@@ -79,10 +79,12 @@ rule Total_sample_exon_counts:
         expand("{outdir}Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage", outdir = config["master_output_directory"], sample=DATA )
     output:
         config["master_output_directory"] + "Round2/TOTAL.filter1.ME_SJ_coverage"
+    params:
+        config["master_output_directory"] + "Round2/"
     conda:
         "../envs/core.yaml"
     shell:
-      "cat Round2/*.filter1.ME_SJ_coverage > {output}"
+      "cat {params}*.filter1.ME_SJ_coverage > {output}"
 
 rule write_ME_matches:
     input:
