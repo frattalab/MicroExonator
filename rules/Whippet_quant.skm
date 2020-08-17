@@ -205,7 +205,7 @@ if str2bool(config.get("Only_snakepool", False))==False:
           input:
               config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz",
               config["master_output_directory"] + "Whippet/Delta/{comparison_name}.diff.gz",
-              config["master_output_directory"] + "Report/out.high_quality.txt"
+              input_me_results_table()
           output:
               config["master_output_directory"] + "Whippet/Delta/{comparison_name}.diff.microexons"
           shell:
@@ -215,7 +215,7 @@ if str2bool(config.get("Only_snakepool", False))==False:
           input:
               config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz",
               config["master_output_directory"] + "Whippet/Delta/{comparison_name}.ME.diff.gz",
-              config["master_output_directory"] + "Report/out.high_quality.txt"
+              input_me_results_table()
           output:
               config["master_output_directory"] + "Whippet/Delta/{comparison_name}.diff.ME.microexons"
           shell:
