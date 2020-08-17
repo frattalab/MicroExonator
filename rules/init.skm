@@ -8,18 +8,18 @@ from collections import defaultdict
 
 
 try:
-    os.mkdir("FASTQ")
+    os.makedirs(os.path.join(config["master_output_directory"], "FASTQ"))
 except FileExistsError:
     pass
 
 try:
-    os.mkdir("download")
+    os.makedirs(os.path.join(config["master_output_directory"], "download"))
 except FileExistsError:
     pass
-    
-    
+
+
 try:
-    os.mkdir("logs")
+    os.makedirs(os.path.join(config["master_output_directory"], "logs"))
 except FileExistsError:
     pass
 
@@ -38,8 +38,8 @@ if os.path.isfile('./NCBI_accession_list.txt'):
             RUN = row[0]
             DATA.add(RUN)
 
-            file_name = "download/" + RUN + ".download.sh"
-            command = "fastq-dump.2.9.1 --split-files -O FASTQ "
+            file_name = config["master_output_directory"] + "download/" + RUN + ".download.sh"
+            command = "fastq-dump.2.9.1 --split-files -O {0}".format(config["master_output_directory"] + "FASTQ")
 
             if len(glob.glob(file_name))==0: #Check if the file is there, as if this file is overwriten everything will start from scratch
 
@@ -49,8 +49,8 @@ if os.path.isfile('./NCBI_accession_list.txt'):
                 download_file.write('srr="' + RUN + '"' + "\n" )
                 download_file.write(command + " " + RUN + "\n")
                 download_file.write( "numLines=$(fastq-dump.2.9.1 -X 1 -Z --split-spot $srr | wc -l)" + "\n")
-                download_file.write( "if [ $numLines -eq 8 ]; then cat FASTQ/${srr}_1.fastq FASTQ/${srr}_2.fastq > FASTQ/$srr.fastq && rm FASTQ/${srr}_1.fastq FASTQ/${srr}_2.fastq; fi"  + "\n")
-                download_file.write( "if [ -f FASTQ/${srr}_1.fastq ]; then mv FASTQ/${srr}_1.fastq FASTQ/${srr}.fastq ; elif [ -f FASTQ/${srr}_2.fastq ]; then mv FASTQ/${srr}_2.fastq FASTQ/${srr}.fastq; fi"  + "\n")
+                download_file.write( "if [ $numLines -eq 8 ]; then cat {0}${srr}_1.fastq {0}${srr}_2.fastq > {0}$srr.fastq && rm {0}${srr}_1.fastq {0}${srr}_2.fastq; fi".format(config["master_output_directory"] + "FASTQ/")  + "\n")
+                download_file.write( "if [ -f {0}${srr}_1.fastq ]; then mv {0}${srr}_1.fastq {0}${srr}.fastq ; elif [ -f {0}${srr}_2.fastq ]; then mv {0}${srr}_2.fastq {0}${srr}.fastq; fi".format(config["master_output_directory"] + "FASTQ/")  + "\n")
 
 
 if os.path.isfile("./local_samples.tsv"):
@@ -64,7 +64,7 @@ if os.path.isfile("./local_samples.tsv"):
 
             DATA.add(row["sample"])
 
-            file_name = "download/" + row["sample"]  + ".download.sh"
+            file_name = config["master_output_directory"] + "download/" + row["sample"]  + ".download.sh"
 
 
             if len(glob.glob(file_name))==0: #Check if the file is there, as if this file is overwriten everything will start from scratch
@@ -74,20 +74,20 @@ if os.path.isfile("./local_samples.tsv"):
                     download_file =  open(file_name, "w")
 
                     download_file.write("#!/bin/bash" + "\n")
-                    download_file.write("cp " + row["path"] +  " FASTQ/" + row["sample"]  + ".fastq" + "\n")
-                
-                
+                    download_file.write("cp " + row["path"] + config["master_output_directory"] + " FASTQ/" + row["sample"]  + ".fastq" + "\n")
+
+
                 else:
-                
+
                     download_file =  open(file_name, "w")
 
                     download_file.write("#!/bin/bash" + "\n")
-                    download_file.write("zcat " + row["path"] +  " > FASTQ/" + row["sample"]  + ".fastq" + "\n")
+                    download_file.write("zcat " + row["path"] +  " > " + config["master_output_directory"] + "FASTQ/" + row["sample"]  + ".fastq" + "\n")
 
 
 
 if os.path.isfile("./sample_url.tsv"):
-    
+
     with open("./sample_url.tsv") as file :
 
         reader = csv.DictReader(file, delimiter="\t")
@@ -96,7 +96,7 @@ if os.path.isfile("./sample_url.tsv"):
 
             DATA.add(row["sample"])
 
-            file_name = "download/" + row["sample"]  + ".download.sh"
+            file_name = config["master_output_directory"] + "download/" + row["sample"]  + ".download.sh"
 
 
             if len(glob.glob(file_name))==0: #Check if the file is there, as if this file is overwriten everything will start from scratch
@@ -104,69 +104,68 @@ if os.path.isfile("./sample_url.tsv"):
                 download_file =  open(file_name, "w")
 
                 download_file.write("#!/bin/bash" + "\n")
-                download_file.write("wget -r " + row["url"] +  " -O FASTQ/" + row["sample"]  + ".fastq.gz" + "\n")
-                download_file.write("gzip -d FASTQ/" + row["sample"]  + ".fastq.gz" + "\n")
+                download_file.write("wget -r " + row["url"] +  " -O " + config["master_output_directory"] + "FASTQ/" + row["sample"]  + ".fastq.gz" + "\n")
+                download_file.write("gzip -d " + config["master_output_directory"] + "FASTQ/" + row["sample"]  + ".fastq.gz" + "\n")
 
 
 
 
 if os.path.isfile("./local_samples_cram.tsv"):
 
-    
+
 
 
     with open("./local_samples_cram.tsv") as file :
 
         reader = csv.DictReader(file, delimiter="\t")
-        
+
         files_cramtofastq = defaultdict(list)
         files_subcat  = defaultdict(list)
 
         for row in reader:
-            
+
             basename = row["sample"]
-            
+
             if "multiplex" in row:
-                
+
                 basename = "_".join([row["sample"],  row["multiplex"]])
-            
+
 
             DATA.add(row["sample"])
 
-            file_name = "download/" + row["sample"]  + ".download.sh"
+            file_name = config["master_output_directory"] + "download/" + row["sample"]  + ".download.sh"
 
 
 
             if len(glob.glob(file_name))==0: #Check if the file is there, as if this file is overwriten everything will start from scratch
 
-                
 
-                if "multiplex" in row: 
-                
-                    out_name =  row["sample"] 
-                
+
+                if "multiplex" in row:
+
+                    out_name =  row["sample"]
+
                     #if row["multiplex"] == config["multiplex_number"]:
-                    
-                    #download_file.write("cat " + subcat + "> FASTQ/" + row["sample"]  + ".fastq " + "\n")
 
-                    cramtofastq = "samtools view -b " + row["path"] +  " | samtools bam2fq -1 FASTQ/" + basename  + ".rd1.fastq -2 FASTQ/" +  basename + ".rd2.fastq -0 /dev/null -s /dev/null -n -F 0x900 - &&" + "\n"
-                    subcat = "FASTQ/" + basename  + ".rd1.fastq FASTQ/" +  basename + ".rd2.fastq "
+                    #download_file.write("cat " + subcat + "> " + config["master_output_directory"] + FASTQ/" + row["sample"]  + ".fastq " + "\n")
+
+                    cramtofastq = "samtools view -b " + row["path"] +  " | samtools bam2fq -1 " + config["master_output_directory"] + "FASTQ/" + basename  + ".rd1.fastq -2 " + config["master_output_directory"] + "FASTQ/" +  basename + ".rd2.fastq -0 /dev/null -s /dev/null -n -F 0x900 - &&" + "\n"
+                    subcat = config["master_output_directory"] + "FASTQ/" + basename  + ".rd1.fastq FASTQ/" +  basename + ".rd2.fastq "
 
                     files_cramtofastq[out_name].append(cramtofastq)
                     files_subcat[out_name].append(subcat)
                 else:
-                
+
                     download_file =  open(file_name, "w")
 
                     download_file.write("#!/bin/bash" + "\n")
-                    download_file.write("samtools view -b " + row["path"] +  " | samtools bam2fq -1 FASTQ/" + basename  + ".rd1.fastq -2 FASTQ/" +  basename + ".rd2.fastq -0 /dev/null -s /dev/null -n -F 0x900 - &&" + "\n")
-                
-                    download_file.write("cat  FASTQ/" + basename  + ".rd1.fastq FASTQ/" +  basename + ".rd2.fastq > " + " FASTQ/" + row["sample"]  + ".fastq " + "\n") 
+                    download_file.write("samtools view -b " + row["path"] + " | samtools bam2fq -1 " + config["master_output_directory"] + "FASTQ/" + basename + ".rd1.fastq -2 " + config["master_output_directory"] + "FASTQ/" + basename + ".rd2.fastq -0 /dev/null -s /dev/null -n -F 0x900 - &&" + "\n")
 
-        
+                    download_file.write("cat " + config["master_output_directory"] + "FASTQ/" + basename + ".rd1.fastq " + config["master_output_directory"] + "FASTQ/" + basename + ".rd1.fastq > " + config["master_output_directory"] + "FASTQ/" + row["sample"] + ".fastq" + "\n")
+
         for out_name in files_cramtofastq:
 
-            file_name = "download/" + out_name  + ".download.sh"
+            file_name = config["master_output_directory"] + "download/" + out_name  + ".download.sh"
 
 
             download_file =  open(file_name, "w")
@@ -179,7 +178,7 @@ if os.path.isfile("./local_samples_cram.tsv"):
 
                 download_file.write(cramtofastq)
 
-            cat = "cat " + "".join(subcats) +  " > FASTQ/" + out_name + ".fastq &&" + "\n"
+            cat = "cat " + "".join(subcats) +  " > " + config["master_output_directory"] + "FASTQ/" + out_name + ".fastq &&" + "\n"
             rm  = "rm " + "".join(subcats)  + "\n"
 
             download_file.write(cat)

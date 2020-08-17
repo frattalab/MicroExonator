@@ -1,9 +1,9 @@
 
 rule bwa_index:
     input:
-        "Round1/ME_TAGs.fa"
+        config["master_output_directory"] + "Round1/ME_TAGs.fa"
     output:
-        "Round1/ME_TAGs.fa.amb"
+        config["master_output_directory"] + "Round1/ME_TAGs.fa.amb"
     conda:
         "../envs/core.yaml"
     shell:
@@ -11,14 +11,14 @@ rule bwa_index:
 
 rule Round1_bwa_mem_to_tags:
     input:
-        "Round1/ME_TAGs.fa",
-        "FASTQ/{sample}.fastq",
-        "Round1/ME_TAGs.fa.amb"
+        config["master_output_directory"] + "Round1/ME_TAGs.fa",
+        config["master_output_directory"] + "FASTQ/{sample}.fastq",
+        config["master_output_directory"] + "Round1/ME_TAGs.fa.amb"
     output:
-        temp("Round1/{sample}.sam")
+        temp(config["master_output_directory"] + "Round1/{sample}.sam")
     threads: 5
     priority: 100
-    params: 
+    params:
         indel = config["indel_penalty"]
     conda:
         "../envs/core.yaml"
@@ -28,9 +28,9 @@ rule Round1_bwa_mem_to_tags:
 
 rule Round1_alingment_pre_processing:
     input:
-        "Round1/{sample}.sam"
+        config["master_output_directory"] + "Round1/{sample}.sam"
     output:
-        temp("Round1/{sample}.sam.pre_processed")
+        temp(config["master_output_directory"] + "Round1/{sample}.sam.pre_processed")
     priority: 100
     conda:
         "../envs/core.yaml"

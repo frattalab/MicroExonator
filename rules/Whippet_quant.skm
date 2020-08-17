@@ -11,27 +11,53 @@
 #      "python3 src/GetPSI.py {input} 5 {params.path}"
 
 #comparison_names = whippet_delta.keys()
-      
+
+
 rule GetPSI:
     input:
-        "Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage"
+        config["master_output_directory"] + "Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage"
     output:
-        "Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage.PSI"
+        config["master_output_directory"] + "Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage.PSI"
     conda:
         "../envs/core_py3.yaml"
     shell:
       "python3 src/GetPSI.py {input} 5 > {output}"
+
+
+rule combine_output_tables:
+    input:
+        config["master_output_directory"] + "Report/out_low_scored_ME.txt",
+        config["master_output_directory"] + "Report/out.high_quality.txt"
+
+    output:
+        config["master_output_directory"] + "Report/out.combined_high_low.txt"
+
+    shell:
+        "awk 'NR > 1' {input[0]} | cat {input[1]} - > {output}"
+
+
+def input_me_results_table():
+    if "whippet_which_MEs" not in config:
+        return config["master_output_directory"] + "Report/out.high_quality.txt"
+    elif config["whippet_which_MEs"] not in ["all","high"]:
+        raise ValueError("{0} is invalid string for whippet_which_MEs - must be 'all' or 'high' (or remove option entirely to assess high confidence only)".format(config["whippet_which_MEs"]))
+
+    elif config["whippet_which_MEs"] == "all":
+        return config["master_output_directory"] + "Report/out.combined_high_low.txt"
+    elif config["whippet_which_MEs"] == "high":
+        return config["master_output_directory"] + "Report/out.high_quality.txt"
+
 
 rule get_GTF:
     input:
         genome_fasta = config["Genome_fasta"],
         annotation_bed12 = config["Gene_anontation_bed12"],
         annotation_GTF = config["Gene_anontation_GTF"],
-        out_filtered_ME = "Report/out.high_quality.txt"
+        out_filtered_ME = input_me_results_table()
     params:
         chrM = False
     output:
-        ME_GTF = "Report/out.high_quality.gtf.txt"
+        ME_GTF = config["master_output_directory"] + "Report/out.high_quality.gtf.txt"
     conda:
         "../envs/core.yaml"
     shell:
@@ -47,8 +73,8 @@ if str2bool(config.get("Only_whippet", False)):
           params:
               bin = config["whippet_bin_folder"]
           output:
-              "Whippet/Index/whippet.jls",
-              "Whippet/Index/whippet.jls.exons.tab.gz"
+              config["master_output_directory"] + "Whippet/Index/whippet.jls",
+              config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz"
           log:
               "logs/whippet_index.log"
           shell:
@@ -57,25 +83,25 @@ else:
       rule whippet_index:
           input:
               Genome = config["Genome_fasta"],
-              ME_GTF = "Report/out.high_quality.gtf.txt"
+              ME_GTF = config["master_output_directory"] + "Report/out.high_quality.gtf.txt"
           params:
               bin = config["whippet_bin_folder"]
           output:
-              "Whippet/Index/whippet.jls",
-              "Whippet/Index/whippet.jls.exons.tab.gz"
+              config["master_output_directory"] + "Whippet/Index/whippet.jls",
+              config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz"
           log:
               "logs/whippet_index.log"
           shell:
-              "julia {params.bin}/whippet-index.jl --fasta {input.Genome} --gtf {input.ME_GTF} --index {output[0]} 2> {log}" 
+              "julia {params.bin}/whippet-index.jl --fasta {input.Genome} --gtf {input.ME_GTF} --index {output[0]} 2> {log}"
 
 
 
 if "Get_Bamfiles" not in config: #To make it optional
       config["Get_Bamfiles"]="F"
-      
-if "whippet_flags" not in config:  
+
+if "whippet_flags" not in config:
       config["whippet_flags"]=""
-      
+
 
 if str2bool(config["Get_Bamfiles"])==True:
 
@@ -86,18 +112,18 @@ if str2bool(config["Get_Bamfiles"])==True:
 
       rule  whippet_quant:
           input:
-              'FASTQ/{sample}.fastq.gz',
-              "Whippet/Index/whippet.jls"
+              config["master_output_directory"] + "FASTQ/{sample}.fastq.gz",
+              config["master_output_directory"] + "Whippet/Index/whippet.jls"
           params:
               bin = config["whippet_bin_folder"],
-              output = "Whippet/Quant/{sample}",
+              output = config["master_output_directory"] + "Whippet/Quant/{sample}",
               flags = "--sam"
           output:
-              "Whippet/Quant/{sample}.gene.tpm.gz",
-              "Whippet/Quant/{sample}.isoform.tpm.gz",
-              "Whippet/Quant/{sample}.jnc.gz",
-              "Whippet/Quant/{sample}.map.gz",
-              "Whippet/Quant/{sample}.psi.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.gene.tpm.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.isoform.tpm.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.jnc.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.map.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.psi.gz",
               sam = temp("Whippet/BAM/{sample}.sam")
           priority: 100
           shell:
@@ -106,38 +132,38 @@ if str2bool(config["Get_Bamfiles"])==True:
 else:
       rule  whippet_quant:
           input:
-              'FASTQ/{sample}.fastq.gz',
-              "Whippet/Index/whippet.jls"
+              config["master_output_directory"] + "FASTQ/{sample}.fastq.gz",
+              config["master_output_directory"] + "Whippet/Index/whippet.jls"
           params:
               bin = config["whippet_bin_folder"],
-              output = "Whippet/Quant/{sample}",
+              output = config["master_output_directory"] + "Whippet/Quant/{sample}",
               flags = config["whippet_flags"]
           output:
-              "Whippet/Quant/{sample}.gene.tpm.gz",
-              "Whippet/Quant/{sample}.isoform.tpm.gz",
-              "Whippet/Quant/{sample}.jnc.gz",
-              "Whippet/Quant/{sample}.map.gz",
-              "Whippet/Quant/{sample}.psi.gz"
+              config["master_output_directory"] + "Whippet/Quant/{sample}.gene.tpm.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.isoform.tpm.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.jnc.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.map.gz",
+              config["master_output_directory"] + "Whippet/Quant/{sample}.psi.gz"
           priority: 100
           shell:
-              "julia {params.bin}/whippet-quant.jl {input[0]}  -x {input[1]} -o {params.output} {params.flags}"      
+              "julia {params.bin}/whippet-quant.jl {input[0]}  -x {input[1]} -o {params.output} {params.flags}"
 
 
 rule SamToBam:
     input:
-        sam = "Whippet/BAM/{sample}.sam"
+        sam = config["master_output_directory"] + "Whippet/BAM/{sample}.sam"
     output:
-        bam = temp("Whippet/BAM/{sample}.bam")
+        bam = temp(config["master_output_directory"] + "Whippet/BAM/{sample}.bam")
     shell:
         "samtools sort  -o {output.bam} -O BAM {input}"
-        
+
 rule BamIndex:
       input:
-        bam = "Whippet/BAM/{sample}.bam"
+        bam = config["master_output_directory"] + "Whippet/BAM/{sample}.bam"
       output:
-        index = "Whippet/BAM/{sample}.bam.bai"
+        index = config["master_output_directory"] + "Whippet/BAM/{sample}.bam.bai"
       shell:
-        "samtools index {input.bam}"   
+        "samtools index {input.bam}"
 
 
 #rule unzip_quant:
@@ -151,24 +177,24 @@ rule BamIndex:
 
 rule ME_psi_to_quant:
     input:
-        ME_PSI = "Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage.PSI",
-        whippet_PSI = "Whippet/Quant/{sample}.psi.gz"
+        ME_PSI = config["master_output_directory"] + "Round2/{sample}.sam.pre_processed.filter1.ME_SJ_coverage.PSI",
+        whippet_PSI = config["master_output_directory"] + "Whippet/Quant/{sample}.psi.gz"
     output:
-        ME_psi =  "Whippet/Quant/{sample}.psi.ME"
+        ME_psi =  config["master_output_directory"] + "Whippet/Quant/{sample}.psi.ME"
     shell:
         "python3 src/Replace_PSI_whippet.py {input} > {output} "
 
 
 rule gzip_ME_psi_to_quant:
     input:
-        ME_psi =  "Whippet/Quant/{sample}.psi.ME"
+        ME_psi =  config["master_output_directory"] + "Whippet/Quant/{sample}.psi.ME"
     output:
-        ME_psi_gz =  "Whippet/Quant/{sample}.psi.ME.gz"
+        ME_psi_gz =  config["master_output_directory"] + "Whippet/Quant/{sample}.psi.ME.gz"
     shell:
         "gzip {input}"
 
-#condition1 = config["condition1"].split(",") 
-#condition2 = config["condition2"].split(",")  
+#condition1 = config["condition1"].split(",")
+#condition2 = config["condition2"].split(",")
 #comparison_name = config["comparison_name"]
 
 # # # # # # #
@@ -177,20 +203,20 @@ if str2bool(config.get("Only_snakepool", False))==False:
 
       rule delta_ME_from_whippet:
           input:
-              "Whippet/Index/whippet.jls.exons.tab.gz",
-              "Whippet/Delta/{comparison_name}.diff.gz",
-              "Report/out.high_quality.txt"
+              config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz",
+              config["master_output_directory"] + "Whippet/Delta/{comparison_name}.diff.gz",
+              input_me_results_table()
           output:
-              "Whippet/Delta/{comparison_name}.diff.microexons"
+              config["master_output_directory"] + "Whippet/Delta/{comparison_name}.diff.microexons"
           shell:
               "python src/whippet_delta_to_ME.py {input} > {output}"
 
       rule delta_ME_from_MicroExonator:
           input:
-              "Whippet/Index/whippet.jls.exons.tab.gz",
-              "Whippet/Delta/{comparison_name}.ME.diff.gz",
-              "Report/out.high_quality.txt"
+              config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz",
+              config["master_output_directory"] + "Whippet/Delta/{comparison_name}.ME.diff.gz",
+              input_me_results_table()
           output:
-              "Whippet/Delta/{comparison_name}.diff.ME.microexons"
+              config["master_output_directory"] + "Whippet/Delta/{comparison_name}.diff.ME.microexons"
           shell:
               "python src/whippet_delta_to_ME.py {input} > {output}"

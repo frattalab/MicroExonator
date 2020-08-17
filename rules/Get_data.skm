@@ -1,11 +1,11 @@
 
 rule download_fastq:
     input:
-        "download/{sample}.download.sh"
+        config["master_output_directory"] + "download/{sample}.download.sh"
     output:
-        temp("FASTQ/{sample}.fastq")
+        temp(config["master_output_directory"] + "FASTQ/{sample}.fastq")
     resources:
-        get_data = 1 
+        get_data = 1
     conda:
         "../envs/core.yaml"
     priority: -10
@@ -17,7 +17,7 @@ rule generate_fasta_from_bed12:
         config["Genome_fasta"],
         config["Gene_anontation_bed12"]
     output:
-        "data/transcripts.fa"
+        config["master_output_directory"] + "data/transcripts.fa"
     conda:
         "../envs/pybedtools.yaml"
     shell:
@@ -27,12 +27,12 @@ rule generate_fasta_from_bed12:
 rule Splice_Junction_Library:
     input:
         config["Genome_fasta"],
-        "data/transcripts.fa",
+        config["master_output_directory"] + "data/transcripts.fa",
         config["Gene_anontation_bed12"]
     params:
         ME_len = config["ME_len"]
     output:
-        "Round1/ME_TAGs.fa"
+        config["master_output_directory"] + "Round1/ME_TAGs.fa"
     conda:
         "../envs/core.yaml"
     shell:
@@ -47,8 +47,8 @@ rule GetPWM:
         config["GT_AG_U2_5"],
         config["GT_AG_U2_3"]
     output:
-        "data/GT_AG_U2_5.pwm",
-        "data/GT_AG_U2_3.pwm"
+        config["master_output_directory"] + "data/GT_AG_U2_5.pwm",
+        config["master_output_directory"] + "data/GT_AG_U2_3.pwm"
     conda:
         "../envs/core_py3.yaml"
     shell:
@@ -57,9 +57,9 @@ rule GetPWM:
 
 rule gzip_fastq:
     input:
-        "FASTQ/{sample}.fastq"
+        config["master_output_directory"] + "FASTQ/{sample}.fastq"
     output:
-        temp("FASTQ/{sample}.fastq.gz")
+        temp(config["master_output_directory"] + "FASTQ/{sample}.fastq.gz")
     priority: 100
     shell:
         "gzip {input}"

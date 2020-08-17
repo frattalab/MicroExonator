@@ -1,0 +1,119 @@
+__default__:
+    tmem: 4G
+    h_vmem: 4G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
+
+Splice_Junction_Library:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+Round1_bwa_mem_to_tags:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+bwa_index:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+hisat2_Genome_index:
+    tmem: 12G
+    h_vmem: 12G
+    h_rt:   24:00:00
+    pe: smp 4
+    R:  y
+
+Round1_filter:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
+
+hisat2_to_Genome:
+    tmem: 10G
+    h_vmem: 10G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
+
+Get_ME_from_annotation:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
+
+
+whippet_quant:
+    tmem: 4G
+    h_vmem: 4G
+    h_rt:   2:00:00
+    pe: smp 1
+    R:  y
+
+Round2_bowtie_to_tags:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+bowtie_Genome_index:
+    tmem: 12G
+    h_vmem: 12G
+    h_rt:   24:00:00
+    pe: smp 4
+    R:  y
+
+bowtie_to_genome:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+Output:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+total_hisat2_to_Genome:
+    tmem: 8G 
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 2
+    R:  y
+
+Round2_filter:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
+
+bam_to_coverage_bedgraph:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
+
+whippet_index:
+    tmem: 8G
+    h_vmem: 8G
+    h_rt:   24:00:00
+    pe: smp 1
+    R:  y
