@@ -13,8 +13,14 @@ def str2bool(v):
   else:
     return v.lower() in ("yes", "true", "t", "1")
 
+#Moved here so DATA is filled before targets are defined in the first rule (quant) - expand calls work as intended
+#https://snakemake.readthedocs.io/en/stable/snakefiles/modularization.html#includes
+include : "rules/init.skm"
+include : "rules/Get_data.skm"
+
 rule quant:
     input:
+        expand("{outdir}Round2/coverage_bedgraphs/{sample}.microexons.bedGraph", outdir = config["master_output_directory"], sample=DATA),
         config["master_output_directory"] + "Report/out.high_quality.annot_status.txt",
         config["master_output_directory"] + "Report/out_low_scored_ME.annot_status.txt",
         config["master_output_directory"] + "Report/out_shorter_than_3_ME.annot_status.txt"
@@ -22,8 +28,7 @@ rule quant:
         #config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
         #"Report/out_filtered_ME.PSI.txt",
         #"Report/stats/Microexons.not_consensus",
-        #"Report/stats/Microexons.annotation.stats"
-
+        #"Report/stats/Microexons.annotation.stats",
         #"Report/out_filtered_ME.txt"
         #expand("Genome_aligments/{Software}/TOTAL.exons.{Software}", Software=["Hisat2", "STAR", "Olego"])
         # expand("Genome_aligments/{Software}/{sample}.sam.SJ_count", sample=DATA, Software=["Hisat2", "STAR"]),
@@ -55,14 +60,19 @@ if ("min_reads_PSI" in config)==False:
     config["min_reads_PSI"]="5"
 
 
-include : "rules/init.skm"
-include : "rules/Get_data.skm"
+#include : "rules/init.skm"
+#include : "rules/Get_data.skm"
+
+rule bowtie_bam_files:
+    input:
+        expand("Round2/{sample}.bam",sample=DATA)
 
 
 rule bamfiles:
     input:
         expand("{outdir}Whippet/BAM/{samples}.bam", outdir = config["master_output_directory"], samples=DATA),
         expand("{outdir}Whippet/BAM/{samples}.bam.bai", outdir = config["master_output_directory"], samples=DATA)
+
 
 
 if ("downstream_only" in config)==False:
@@ -121,6 +131,7 @@ for file in DATA:
 rule rerun_incomplete_round1:
     input:
         expand("{outdir}Round1/{sample}.sam.row_ME.filter1", outdir = config["master_output_directory"], sample=round1_incomplete )
+
 
 
 

@@ -87,12 +87,62 @@ rule Round2_bowtie_to_tags:
     conda:
         "../envs/core.yaml"
     shell:
-        "bowtie {input[0]} -p {threads} -q {input[1]} -S -v 2 --seed 123 | awk '!($6 ~ /I/) && !($6 ~ /D/) && !($6 ~ /S/) && !($6 ~ /*/)' > {output}"
+        "bowtie {input[0]} -p {threads} -q {input[1]} -S -v 2 --seed 123 {output}"
+
+
+rule sam_to_bam:
+    '''
+    () characters are invalid reference sequence names for SAM/BAM files (see regex in specs)
+    Remove () characters from alignment lines (column 3) & header before conversion to BAM
+    Some SN:<sequence_name> are also duplicated in header - one @SQ tag per sequence name only
+    Currently a bug with samtools using conda environment... try and solve
+    '''
+
+    input:
+        config["master_output_directory"] + "Round2/{sample}.sam",
+
+    output:
+        temp(config["master_output_directory"] + "Round2/{sample}.bam"),
+        temp(config["master_output_directory"] + "Round2/{sample}.bam.bai")
+
+    #conda:
+    #    "../envs/core.yaml"
+
+    params:
+        config['samtools_path']
+
+    shell:
+        """
+        {params} view -H {input} |\
+        tr -d '()' |\
+        sort -u > {input}.header
+
+        {params} view {input} | awk 'BEGIN{{FS=OFS="\\t"}} {{gsub(/\(|\)/, "", $3)}} 1' - > {input}.alignments
+
+        cat {input}.header {input}.alignments > {input}.concat
+        rm {input}.header {input}.alignments
+
+        {params} sort -o {output[0]} {input}.concat
+        rm {input}.concat
+
+        {params} index {output[0]} {output[1]}
+        """
+
+
+rule Round2_bowtie_sam_to_tags:
+    input:
+        config["master_output_directory"] + "Round2/{sample}.sam",
+
+    output:
+        temp(config["master_output_directory"] + "Round2/{sample}.tags.sam")
+
+    shell:
+        "awk '!($6 ~ /I/) && !($6 ~ /D/) && !($6 ~ /S/) && !($6 ~ /*/)' {input} > {output}"
 
 
 rule Round2_alingment_pre_processing:
     input:
-        config["master_output_directory"] + "Round2/{sample}.sam"
+        config["master_output_directory"] + "Round2/{sample}.tags.sam"
     output:
         temp(config["master_output_directory"] + "Round2/{sample}.sam.pre_processed")
     priority: 100

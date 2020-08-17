@@ -102,7 +102,6 @@ rule Output:
         config["master_output_directory"] + "Round2/TOTAL.ME_centric.txt",
         config["master_output_directory"] + "Round2/TOTAL.filter1.ME_SJ_coverage",
         config["master_output_directory"] + "Round2/TOTAL.ME_centric.ME_matches.txt"
-
     params:
         wd = config["working_directory"],
         min_number_files_detected = config["min_number_files_detected"]
@@ -128,11 +127,37 @@ rule high_confident_filters:
         config["master_output_directory"] + "Report/out_filtered_ME.txt",
         config["master_output_directory"] + "Report/out_low_scored_ME.txt"
     output:
-        config["master_output_directory"] + "Report/out.high_quality.txt"
+        config["master_output_directory"] + "Report/out.high_quality.txt",
+        config["master_output_directory"] + "Report/out.ambiguous.txt"
     conda:
         "../envs/core_py3.yaml"
     shell:
-        "python src/high_confident_list.py {input}  > {output}"
+        "python src/high_confident_list.py {input}  > {output[0]}"
+
+
+rule bam_to_coverage_bedgraph:
+    input:
+        config["master_output_directory"] + "Round2/{sample}.bam",
+        config["master_output_directory"] + "Round2/{sample}.bam.bai",
+        config["master_output_directory"] + "Round2/{sample}.sam.pre_processed.filter1",
+        config["master_output_directory"] + "Report/out_filtered_ME.txt",
+        config["master_output_directory"] + "Report/out_low_scored_ME.txt",
+        config["master_output_directory"] + "Report/out_shorter_than_3_ME.txt",
+
+    output:
+        config["master_output_directory"] + "Round2/coverage_bedgraphs/{sample}.microexons.bedGraph"
+
+    params:
+        lambda wildcards, input: ','.join(input[3:])
+
+    conda:
+        "../envs/core_py3.yaml"
+
+    log:
+        "logs/coverage_profiles/{sample}.log"
+
+    shell:
+        "python src/get_coverage_profiles.py {input[0]} {params} {input[2]} > {output} 2> {log}"
 
 
 rule coverage_to_PSI:
