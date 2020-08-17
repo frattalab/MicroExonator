@@ -9,8 +9,10 @@ rule row_Micro_Exon_reads:
         temp(config["master_output_directory"] + "Round1/{sample}.sam.row_ME.fastq")
     conda:
         "../envs/core.yaml"
+    log:
+        config["master_output_directory"] + "Round1_row_Micro_Exon_reads/{sample}.txt"
     shell:
-        "python2 src/row_ME.py {input} > {output[0]}"
+        "python2 src/row_ME.py {input} > {output[0]} 2> {log}"
 
 
 rule hisat2_Genome_index:

@@ -43,7 +43,7 @@ def main(sam_pre_processed):
 
 			istart = int(istart)
 			iend = int(iend)
-			
+
 			try:
 
 				intron_seq = str(Genome[chr][istart:iend]).upper()
@@ -57,6 +57,7 @@ def main(sam_pre_processed):
 
 				if "-" in intron_tag:
 					strand = "-"
+					rev_DR_corrected_micro_exon_seq_found = str(Seq(DR_corrected_micro_exon_seq_found).reverse_complement())
 
 				if strand == "+" and island in intron_seq:
 
@@ -82,6 +83,43 @@ def main(sam_pre_processed):
 
 						micro_exons_coords.append("_".join((map(str, [ME_chr, ME_strand, ME_start, ME_end]))))
 
+
+				#LOOKING FOR CRYPTICS WITHOUT CANONICAL SPLICE SITE DINUCLEOTIDES
+				#splice site diN + micro_exon_seq_ could have already found match in intron and have populated micro_exons_coords
+				#Would also get match with just DR_corrected_micro_exon_seq_found - redundant to add to micro_exons_coords
+				if len(micro_exons_coords) == 0:
+
+					#does microexon seq without GT or AG added match to intron - this is to capture potential cryptics w/o canonical splice site diNs
+					if strand == "+" and DR_corrected_micro_exon_seq_found in intron_seq:
+
+
+						for i in [i for i in range(len(intron_seq)) if intron_seq.startswith(DR_corrected_micro_exon_seq_found, i)]:
+
+							ME_start = i + istart # no + 2 as not searching with splice_site dinucleotide at start of string
+							ME_end = ME_start + len(DR_corrected_micro_exon_seq_found)
+							ME_chr = chr
+							ME_strand = strand
+
+							micro_exons_coords.append("_".join((map(str, [ME_chr, ME_strand, ME_start, ME_end]))))
+							#report as no GT-AG match to log (should decide on better way to track the non GT-AG cryptics...)
+							sys.stderr.write("{0} exactly matches inside corresponding intron but does not have U2 canonical splicing dinucleotides\n".format("_".join((map(str, [ME_chr, ME_strand, ME_start, ME_end])))))
+
+
+					elif strand == "-" and rev_DR_corrected_micro_exon_seq_found in intron_seq:
+
+
+						for i in [i for i in range(len(intron_seq)) if intron_seq.startswith(rev_DR_corrected_micro_exon_seq_found, i)]:
+
+							ME_start = i + istart # no + 2 as not searching with splice_site dinucleotide at start of string
+							ME_end = ME_start + len(rev_DR_corrected_micro_exon_seq_found)
+							ME_chr = chr
+							ME_strand = strand
+
+							micro_exons_coords.append("_".join((map(str, [ME_chr, ME_strand, ME_start, ME_end]))))
+							sys.stderr.write("{0} exactly matches inside corresponding intron but does not have U2 canonical splicing dinucleotides\n".format("_".join((map(str, [ME_chr, ME_strand, ME_start, ME_end])))))
+
+
+
 				micro_exons_coords = ",".join(micro_exons_coords)
 
 				if micro_exons_coords!="":
@@ -103,9 +141,9 @@ def main(sam_pre_processed):
 					# print "+"
 					# print q
 
-					
+
 			except KeyError:
-				pass 
+				pass
 
 if __name__ == '__main__':
 	Genomictabulator(sys.argv[1])
