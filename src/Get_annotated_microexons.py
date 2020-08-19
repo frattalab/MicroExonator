@@ -73,7 +73,7 @@ def PWM_to_dict(file):
 	return matrix
 
 
-def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_DB=False, out_canonical, out_db):
+def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len,  out_canonical, out_db, ME_DB=False):
 
 
 
@@ -487,7 +487,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 
 if __name__ == '__main__':
 	Genomictabulator(sys.argv[1])
-	main(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], int(sys.argv[7]), sys.argv[8], sys.argv[9], sys.argv[10])
+	main(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], int(sys.argv[7]), sys.argv[9], sys.argv[10], sys.argv[8])
 
 
 #python2 ~/my_src/Micro-Exonator/Get_annotated_microexons.py ../../../../../Genome/mm10/mm10.fa Round1/TOTAL/TOTAL.sam.row_ME.filter1.ME_centric ../../../../../Genome/mm10/Tracks/Gene_annotation/gencode.vM11.annotation.bed12 ../../../../../Genome/mm10/Tracks/SpliceRack/mm10_GT_AG_U2_5.good.matrix ../../../../../Genome/mm10/Tracks/SpliceRack/mm10_GT_AG_U2_3.good.matrix ../../../../../Genome/mm10/Tracks/Phylop/mm10.60way.phyloP60way.bw 30
