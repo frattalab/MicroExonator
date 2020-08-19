@@ -112,7 +112,7 @@ rule Output:
         config["master_output_directory"] + "Report/report.html",
         config["master_output_directory"] + "Report/out_filtered_ME.cov.txt"
     log:
-        "logs/Output.log"
+        config["master_output_directory"] + "logs/Output.log"
     conda:
         "../envs/R.yaml"
     shell:
@@ -154,7 +154,7 @@ rule bam_to_coverage_bedgraph:
         "../envs/core_py3.yaml"
 
     log:
-        "logs/coverage_profiles/{sample}.log"
+        config["master_output_directory"] + "logs/coverage_profiles/{sample}.log"
 
     shell:
         "python src/get_coverage_profiles.py {input[0]} {params} {input[2]} > {output} 2> {log}"
