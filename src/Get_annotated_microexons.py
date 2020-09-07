@@ -8,6 +8,8 @@ from pybedtools import BedTool
 import pyBigWig
 from collections import defaultdict
 
+#cryptics run - get error _csv.Error: field larger than field limit (131072) - this sets limit to maximum integer value variable can take
+csv.field_size_limit(sys.maxsize)
 
 
 Genome = {}
@@ -106,7 +108,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 	found_ME = set([])
 	ME_chroms = set([])
 
-	for row in csv.reader(open(ME_centric), delimiter = '\t'):
+	for row in csv.reader(open(ME_centric), delimiter = '\t', quoting=csv.QUOTE_NONE):
 
 		ME, transcript, sum_total_coverage, total_SJs, total_coverages, len_micro_exon_seq_found, micro_exon_seq_found, total_number_of_micro_exons_matches, U2_scores, mean_conservations, P_MEs, total_ME = row
 

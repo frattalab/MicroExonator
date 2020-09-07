@@ -8,6 +8,10 @@ from Bio.Alphabet import generic_dna
 SJ_Tags_seq = {}
 SJ_Tags_info = {}
 
+#cryptics run - get error _csv.Error: field larger than field limit (131072) - this sets limit to maximum integer value variable can take
+csv.field_size_limit(sys.maxsize)
+
+
 def Tagloader(fasta):
 
 	print >> sys.stderr, "Loading SJ Tags in RAM memory ...",
@@ -30,7 +34,7 @@ def Tagloader(fasta):
 
 def main(ME_centric):
 
-	for row in csv.reader(open(ME_centric), delimiter = '\t'):
+	for row in csv.reader(open(ME_centric), delimiter = '\t', quoting=csv.QUOTE_NONE):
 
 		#ME, sum_total_coverage, total_SJs, total_coverages, len_micro_exon_seq_found, micro_exon_seq_found, total_number_of_micro_exons_matches, total_max_U2_scores, total_max_mean_conservations, total_max_mean_conservations_primates, min_P_ME, total_ME = row   #, true_ME, score, is_annotated = row
 		ME, transcript, sum_total_coverage, total_SJs, total_coverages, len_micro_exon_seq_found, micro_exon_seq_found, total_number_of_micro_exons_matches, U2_scores, mean_conservations, P_MEs, total_ME = row
