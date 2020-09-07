@@ -75,7 +75,7 @@ def PWM_to_dict(file):
 	return matrix
 
 
-def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_DB=False):
+def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len,  out_canonical, out_db, ME_DB=False):
 
 
 
@@ -114,7 +114,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 
 		ME_strand, ME_start, ME_end = ME.split("_")[-3:]
 		ME_chrom =  "_".join(ME.split("_")[:-3])
-		
+
 		found_ME.add(ME)
 		ME_chroms.add(ME_chrom)
 
@@ -148,7 +148,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 
 		f_seq = ""
 		r_seq= ""
-		
+
 		if chrom in Genome:
 
 
@@ -267,7 +267,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 				strand = row[5]
 				bn = int(row[9])
 				chrom = row[0]
-				
+
 				if chrom in Genome:
 
 
@@ -316,7 +316,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 	TOTAL_SJ_ends = set([])
 
 
-	with open('data/ME_canonical_SJ_tags.DB.fa', 'w') as out_tags, open('data/DB.ME_centric', 'w') as out_ME_centric :
+	with open(out_canonical, 'w') as out_tags, open(out_db, 'w') as out_ME_centric :
 
 
 
@@ -334,12 +334,12 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 
 
 			if elength <= ME_len and dn=="AGGT" and exon not in found_ME:
-				
-				
+
+
 				if phylop=="NA":
-					
+
 					mean_conservation=0
-					
+
 				else:
 
 					try:
@@ -489,7 +489,7 @@ def main(ME_centric, bed12, U2_GTAG_5_file, U2_GTAG_3_file, phylop, ME_len, ME_D
 
 if __name__ == '__main__':
 	Genomictabulator(sys.argv[1])
-	main (sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], int(sys.argv[7]), sys.argv[8])
+	main(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], int(sys.argv[7]), sys.argv[9], sys.argv[10], sys.argv[8])
 
 
 #python2 ~/my_src/Micro-Exonator/Get_annotated_microexons.py ../../../../../Genome/mm10/mm10.fa Round1/TOTAL/TOTAL.sam.row_ME.filter1.ME_centric ../../../../../Genome/mm10/Tracks/Gene_annotation/gencode.vM11.annotation.bed12 ../../../../../Genome/mm10/Tracks/SpliceRack/mm10_GT_AG_U2_5.good.matrix ../../../../../Genome/mm10/Tracks/SpliceRack/mm10_GT_AG_U2_3.good.matrix ../../../../../Genome/mm10/Tracks/Phylop/mm10.60way.phyloP60way.bw 30

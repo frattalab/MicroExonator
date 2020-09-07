@@ -76,7 +76,7 @@ if str2bool(config.get("Only_whippet", False)):
               config["master_output_directory"] + "Whippet/Index/whippet.jls",
               config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz"
           log:
-              "logs/whippet_index.log"
+              config["master_output_directory"] + "logs/whippet_index.log"
           shell:
               "julia {params.bin}/whippet-index.jl --fasta {input.Genome} --gtf {input.ME_GTF} --index {output[0]} 2> {log}"
 else:
@@ -90,7 +90,7 @@ else:
               config["master_output_directory"] + "Whippet/Index/whippet.jls",
               config["master_output_directory"] + "Whippet/Index/whippet.jls.exons.tab.gz"
           log:
-              "logs/whippet_index.log"
+              config["master_output_directory"] + "logs/whippet_index.log"
           shell:
               "julia {params.bin}/whippet-index.jl --fasta {input.Genome} --gtf {input.ME_GTF} --index {output[0]} 2> {log}"
 
