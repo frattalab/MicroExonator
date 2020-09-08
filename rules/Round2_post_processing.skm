@@ -99,18 +99,18 @@ rule write_ME_matches:
 
 rule Output:
     input:
-        config["master_output_directory"] + "Round2/TOTAL.ME_centric.txt",
-        config["master_output_directory"] + "Round2/TOTAL.filter1.ME_SJ_coverage",
-        config["master_output_directory"] + "Round2/TOTAL.ME_centric.ME_matches.txt"
+        config["working_directory"] + config["master_output_directory"] + "Round2/TOTAL.ME_centric.txt",
+        config["working_directory"] + config["master_output_directory"] + "Round2/TOTAL.filter1.ME_SJ_coverage",
+        config["working_directory"] + config["master_output_directory"] + "Round2/TOTAL.ME_centric.ME_matches.txt"
     params:
         wd = config["working_directory"],
         min_number_files_detected = config["min_number_files_detected"]
     output:
-        config["master_output_directory"] + "Report/out_filtered_ME.txt",
-        config["master_output_directory"] + "Report/out_low_scored_ME.txt",
-        config["master_output_directory"] + "Report/out_shorter_than_3_ME.txt",
-        config["master_output_directory"] + "Report/report.html",
-        config["master_output_directory"] + "Report/out_filtered_ME.cov.txt"
+        config["working_directory"] + config["master_output_directory"] + "Report/out_filtered_ME.txt",
+        config["working_directory"] + config["master_output_directory"] + "Report/out_low_scored_ME.txt",
+        config["working_directory"] + config["master_output_directory"] + "Report/out_shorter_than_3_ME.txt",
+        config["working_directory"] + config["master_output_directory"] + "Report/report.html",
+        config["working_directory"] + config["master_output_directory"] + "Report/out_filtered_ME.cov.txt"
     log:
         config["master_output_directory"] + "logs/Output.log"
     conda:
