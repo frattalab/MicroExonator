@@ -23,7 +23,8 @@ rule quant:
         expand("{outdir}Round2/coverage_bedgraphs/{sample}.microexons.bedGraph", outdir = config["master_output_directory"], sample=DATA),
         config["master_output_directory"] + "Report/out.high_quality.annot_status.txt",
         config["master_output_directory"] + "Report/out_low_scored_ME.annot_status.txt",
-        config["master_output_directory"] + "Report/out_shorter_than_3_ME.annot_status.txt"
+        config["master_output_directory"] + "Report/out_shorter_than_3_ME.annot_status.txt",
+        config["master_output_directory"] + "Report/out_filtered_ME.PSI.txt",
         #config["master_output_directory"] + "Report/stats/Microexons.not_consensus",
         #config["master_output_directory"] + "Report/stats/Microexons.annotation.stats"
         #"Report/out_filtered_ME.PSI.txt",
